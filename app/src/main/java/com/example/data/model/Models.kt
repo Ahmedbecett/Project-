@@ -160,7 +160,7 @@ enum class PaymentMethod(val title: String, val subtitle: String, val icon: Stri
     ),
     BINANCE_PAY(
         "Binance Pay / USDT (بينانس)",
-        "BNB Smart Chain (BEP20) • 0x0ccf...2191",
+        "BNB Smart Chain (BEP20) • 0x0ccf01Ce03c1A485a130Ae63607e922Ff6772191",
         "🪙"
     )
 }

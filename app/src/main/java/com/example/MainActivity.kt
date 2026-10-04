@@ -131,6 +131,7 @@ class MainActivity : ComponentActivity() {
                                     completedLessons = completedLessons,
                                     dailyXp = dailyXp,
                                     dailyGoalXp = dailyGoalXp,
+                                    isPremium = isPremium,
                                     isLevelUnlocked = { level -> viewModel.isLevelUnlocked(level) },
                                     onLevelSelected = { viewModel.selectLevel(it) },
                                     onLessonClick = { lesson -> viewModel.startLesson(lesson) },
@@ -144,6 +145,8 @@ class MainActivity : ComponentActivity() {
                             AppScreen.MAIN_SPEAK -> {
                                 SpeakScreen(
                                     activeTopic = activeConversation,
+                                    isPremium = isPremium,
+                                    onOpenSubscriptions = { viewModel.navigateTo(AppScreen.SUBSCRIPTIONS) },
                                     onSelectTopic = { topic -> viewModel.startConversation(topic) },
                                     onCloseTopic = { viewModel.closeConversation() },
                                     onPlayAudio = { phrase -> viewModel.playAudio(phrase) }
@@ -154,9 +157,11 @@ class MainActivity : ComponentActivity() {
                                 ExamsScreen(
                                     currentLanguage = selectedLanguage,
                                     userCertificates = userCertificates,
+                                    isPremium = isPremium,
                                     onStartExam = { level -> viewModel.startExam(level) },
                                     onViewCertificate = { cert -> viewModel.viewCertificate(cert) },
-                                    onStartPlacementTest = { viewModel.startPlacementTest() }
+                                    onStartPlacementTest = { viewModel.startPlacementTest() },
+                                    onOpenSubscriptions = { viewModel.navigateTo(AppScreen.SUBSCRIPTIONS) }
                                 )
                             }
 
@@ -207,6 +212,8 @@ class MainActivity : ComponentActivity() {
                                 activeLesson?.let { lesson ->
                                     LessonPlayerScreen(
                                         lesson = lesson,
+                                        isPremium = isPremium,
+                                        onOpenSubscriptions = { viewModel.navigateTo(AppScreen.SUBSCRIPTIONS) },
                                         onPlayAudio = { phrase -> viewModel.playAudio(phrase) },
                                         onCompleteLesson = { xp ->
                                             viewModel.completeCurrentLesson(xp)

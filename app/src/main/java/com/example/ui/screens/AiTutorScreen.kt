@@ -32,6 +32,7 @@ import com.example.data.model.AiChatMessage
 import com.example.data.model.CefrLevel
 import com.example.data.model.SupportedLanguage
 import com.example.ui.components.AudioSpeakerButton
+import com.example.ui.components.SponsoredAdBanner
 import com.example.ui.theme.GoldYellow
 import com.example.ui.theme.PurpleAccent
 import com.example.ui.theme.SuccessGreen
@@ -280,6 +281,13 @@ fun AiTutorScreen(
             contentPadding = PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
+            item {
+                SponsoredAdBanner(
+                    isPremium = isPremium,
+                    onUpgradeClick = onUpgradeClick,
+                    modifier = Modifier.padding(bottom = 6.dp)
+                )
+            }
             items(messages) { msg ->
                 AiMessageItem(
                     message = msg,

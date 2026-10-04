@@ -25,6 +25,7 @@ import com.example.R
 import com.example.data.model.CefrLevel
 import com.example.data.model.Certificate
 import com.example.data.model.SupportedLanguage
+import com.example.ui.components.SponsoredAdBanner
 import com.example.ui.theme.GoldYellow
 import com.example.ui.theme.SuccessGreen
 
@@ -32,9 +33,11 @@ import com.example.ui.theme.SuccessGreen
 fun ExamsScreen(
     currentLanguage: SupportedLanguage,
     userCertificates: List<Certificate>,
+    isPremium: Boolean = false,
     onStartExam: (CefrLevel) -> Unit,
     onViewCertificate: (Certificate) -> Unit,
-    onStartPlacementTest: () -> Unit
+    onStartPlacementTest: () -> Unit,
+    onOpenSubscriptions: () -> Unit = {}
 ) {
     LazyColumn(
         modifier = Modifier
@@ -42,6 +45,14 @@ fun ExamsScreen(
             .testTag("exams_screen_list"),
         contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 90.dp)
     ) {
+        // Sponsored Ad banner for free tier
+        item {
+            SponsoredAdBanner(
+                isPremium = isPremium,
+                onUpgradeClick = onOpenSubscriptions,
+                modifier = Modifier.padding(bottom = 12.dp)
+            )
+        }
         // Hero Header
         item {
             Text(
@@ -217,31 +228,65 @@ fun ExamsScreen(
 
                     Spacer(modifier = Modifier.width(14.dp))
 
+                    val isUnlocked = level == CefrLevel.A1 || isPremium
                     Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = "${level.title} (${level.code}) Final Exam",
-                            style = MaterialTheme.typography.titleSmall,
-                            fontWeight = FontWeight.Bold
-                        )
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                text = "${level.title} (${level.code}) Final Exam",
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            if (level == CefrLevel.A1) {
+                                Surface(
+                                    shape = RoundedCornerShape(4.dp),
+                                    color = SuccessGreen.copy(alpha = 0.15f)
+                                ) {
+                                    Text(
+                                        text = "مجاني",
+                                        fontSize = 9.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = SuccessGreen,
+                                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp)
+                                    )
+                                }
+                            } else if (!isPremium) {
+                                Surface(
+                                    shape = RoundedCornerShape(4.dp),
+                                    color = GoldYellow.copy(alpha = 0.2f)
+                                ) {
+                                    Text(
+                                        text = "VIP 🔒",
+                                        fontSize = 9.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp)
+                                    )
+                                }
+                            }
+                        }
                         Text(
                             text = "5 sections: Grammar, Vocab, Reading, Listening, Speaking",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                         Text(
-                            text = "Pass threshold: 70% • 100 XP Reward",
+                            text = if (isUnlocked) "Pass threshold: 70% • 100 XP Reward" else "يتطلب اشتراك VIP لفتح الامتحان والشهادة",
                             style = MaterialTheme.typography.labelSmall,
-                            color = GoldYellow,
+                            color = if (isUnlocked) GoldYellow else MaterialTheme.colorScheme.error,
                             fontWeight = FontWeight.SemiBold
                         )
                     }
 
                     Button(
-                        onClick = { onStartExam(level) },
+                        onClick = {
+                            if (isUnlocked) onStartExam(level) else onOpenSubscriptions()
+                        },
                         shape = RoundedCornerShape(12.dp),
+                        colors = if (isUnlocked) ButtonDefaults.buttonColors() else ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary),
                         modifier = Modifier.testTag("start_exam_btn_${level.code}")
                     ) {
-                        Text(text = "Start", fontWeight = FontWeight.Bold)
+                        Text(text = if (isUnlocked) "Start" else "فتح 👑", fontWeight = FontWeight.Bold)
                     }
                 }
             }

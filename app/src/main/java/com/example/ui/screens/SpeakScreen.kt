@@ -26,6 +26,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.data.model.CefrLevel
 import com.example.data.model.ConversationTopic
 import com.example.data.model.DialogueLine
 import com.example.data.repository.CourseData
@@ -34,9 +35,15 @@ import com.example.ui.theme.GoldYellow
 import com.example.ui.theme.SuccessGreen
 import com.example.util.SpeechManager
 
+import com.example.ui.components.SponsoredAdBanner
+import com.example.ui.theme.GoldYellow
+import com.example.ui.theme.SuccessGreen
+
 @Composable
 fun SpeakScreen(
     activeTopic: ConversationTopic?,
+    isPremium: Boolean = false,
+    onOpenSubscriptions: () -> Unit = {},
     onSelectTopic: (ConversationTopic) -> Unit,
     onCloseTopic: () -> Unit,
     onPlayAudio: (String) -> Unit
@@ -48,12 +55,18 @@ fun SpeakScreen(
             onPlayAudio = onPlayAudio
         )
     } else {
-        TopicListView(onSelectTopic = onSelectTopic)
+        TopicListView(
+            isPremium = isPremium,
+            onOpenSubscriptions = onOpenSubscriptions,
+            onSelectTopic = onSelectTopic
+        )
     }
 }
 
 @Composable
 private fun TopicListView(
+    isPremium: Boolean,
+    onOpenSubscriptions: () -> Unit,
     onSelectTopic: (ConversationTopic) -> Unit
 ) {
     LazyColumn(
@@ -62,6 +75,14 @@ private fun TopicListView(
             .testTag("speak_topic_list"),
         contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 90.dp)
     ) {
+        // Sponsored Ad banner for free tier
+        item {
+            SponsoredAdBanner(
+                isPremium = isPremium,
+                onUpgradeClick = onOpenSubscriptions,
+                modifier = Modifier.padding(bottom = 12.dp)
+            )
+        }
         item {
             Text(
                 text = "Realistic Everyday Conversations",
@@ -78,6 +99,7 @@ private fun TopicListView(
         }
 
         items(CourseData.conversationTopics) { topic ->
+            val isTopicUnlocked = topic.level == CefrLevel.A1 || isPremium
             Card(
                 shape = RoundedCornerShape(20.dp),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
@@ -85,7 +107,9 @@ private fun TopicListView(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(vertical = 6.dp)
-                    .clickable { onSelectTopic(topic) }
+                    .clickable {
+                        if (isTopicUnlocked) onSelectTopic(topic) else onOpenSubscriptions()
+                    }
                     .testTag("topic_card_${topic.id}")
             ) {
                 Row(
@@ -108,13 +132,13 @@ private fun TopicListView(
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Surface(
                                 shape = RoundedCornerShape(6.dp),
-                                color = MaterialTheme.colorScheme.secondaryContainer
+                                color = if (isTopicUnlocked) MaterialTheme.colorScheme.secondaryContainer else GoldYellow.copy(alpha = 0.2f)
                             ) {
                                 Text(
-                                    text = topic.level.code,
+                                    text = if (isTopicUnlocked) topic.level.code else "${topic.level.code} 🔒",
                                     fontSize = 11.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.onSecondaryContainer,
+                                    color = if (isTopicUnlocked) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.primary,
                                     modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
                                 )
                             }
@@ -140,9 +164,9 @@ private fun TopicListView(
                     }
 
                     Icon(
-                        imageVector = Icons.Default.PlayArrow,
-                        contentDescription = "Start Conversation",
-                        tint = MaterialTheme.colorScheme.primary
+                        imageVector = if (isTopicUnlocked) Icons.Default.PlayArrow else Icons.Default.Lock,
+                        contentDescription = if (isTopicUnlocked) "Start Conversation" else "Locked VIP Topic",
+                        tint = if (isTopicUnlocked) MaterialTheme.colorScheme.primary else GoldYellow
                     )
                 }
             }

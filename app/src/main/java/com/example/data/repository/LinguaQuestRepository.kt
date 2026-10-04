@@ -458,7 +458,7 @@ class LinguaQuestRepository(private val context: Context) {
 
     private fun loadRegisteredUsers(): List<RegisteredUser> {
         val raw = prefs.getString("persisted_users", null) ?: return listOf(
-            RegisteredUser("u1", "Ahmed Becetti (Admin)", "ahmedbecetti@gmail.com", "2026-01-10", CefrLevel.C2, true, "Lifetime Owner", 1450),
+            RegisteredUser("u1", "Ahmed Becetti (Admin)", "ahmedbecetti41@gmail.com", "2026-01-10", CefrLevel.C2, true, "Lifetime Owner", 1450),
             RegisteredUser("u2", "Karim Benali", "0550123456", "2026-09-15", CefrLevel.B2, true, "Active: 1 Year VIP", 920),
             RegisteredUser("u3", "Sofia Martinez", "sofia.m@gmail.com", "2026-09-28", CefrLevel.B1, true, "Active: 3 Months", 480),
             RegisteredUser("u4", "Yacine Belkacem", "yacine@yahoo.com", "2026-10-02", CefrLevel.A1, false, "Pending: 1 Month", 110),

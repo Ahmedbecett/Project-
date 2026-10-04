@@ -660,7 +660,7 @@ fun ProfileDashboardScreen(
                             fontWeight = FontWeight.Bold
                         )
                         Text(
-                            text = "ahmedbecetti@gmail.com • Direct support & inquiries",
+                            text = "ahmedbecetti41@gmail.com • Direct support & inquiries",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )

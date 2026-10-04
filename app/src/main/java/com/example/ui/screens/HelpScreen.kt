@@ -52,7 +52,7 @@ fun HelpScreen(
         ),
         FaqItem(
             "How do I contact developer Ahmed Becetti?",
-            "You can reach out directly via email to ahmedbecetti@gmail.com or use the in-app Contact Developer screen to submit suggestions, report issues, or inquire about custom learning curricula."
+            "You can reach out directly via email to ahmedbecetti41@gmail.com or use the in-app Contact Developer screen to submit suggestions, report issues, or inquire about custom learning curricula."
         )
     )
 
@@ -165,7 +165,7 @@ fun HelpScreen(
                         onClick = onContactDeveloper,
                         shape = RoundedCornerShape(12.dp)
                     ) {
-                        Text("Contact Developer (ahmedbecetti@gmail.com)")
+                        Text("Contact Developer (ahmedbecetti41@gmail.com)")
                     }
                 }
             }

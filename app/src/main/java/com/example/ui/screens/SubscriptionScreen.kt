@@ -68,7 +68,7 @@ fun SubscriptionScreen(
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text("شكراً لك! تم استلام بيانات المعاملة وسيتم مراجعتها وتفعيل باقة ${selectedPlan.titleAr} في أقرب وقت.")
-                    Text("يمكنك أيضاً إرسال إشعار مباشر عبر البريد إلى ahmedbecetti@gmail.com لتسريع التفعيل.")
+                    Text("يمكنك أيضاً إرسال إشعار مباشر عبر البريد إلى ahmedbecetti41@gmail.com لتسريع التفعيل.")
                 }
             },
             confirmButton = {
@@ -473,7 +473,7 @@ fun SubscriptionScreen(
             OutlinedButton(
                 onClick = {
                     val emailIntent = Intent(Intent.ACTION_SENDTO).apply {
-                        data = Uri.parse("mailto:ahmedbecetti@gmail.com")
+                        data = Uri.parse("mailto:ahmedbecetti41@gmail.com")
                         putExtra(Intent.EXTRA_SUBJECT, "تأكيد دفع اشتراك LinguaQuest: ${selectedPlan.titleAr}")
                         putExtra(Intent.EXTRA_TEXT, "الاسم: $userNameInput\nرقم الهاتف/الإيميل: $userContactInput\nالباقة: ${selectedPlan.titleAr}\nطريقة الدفع: ${selectedMethod.title}\nرقم المعاملة: $transactionRefInput")
                     }
@@ -486,7 +486,7 @@ fun SubscriptionScreen(
                 shape = RoundedCornerShape(14.dp),
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Text("إرسال نسخة من الوصل بالبريد (ahmedbecetti@gmail.com)")
+                Text("إرسال نسخة من الوصل بالبريد (ahmedbecetti41@gmail.com)")
             }
         }
     }

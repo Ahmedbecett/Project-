@@ -31,6 +31,8 @@ import com.example.data.model.Exercise
 import com.example.data.model.ExerciseType
 import com.example.data.model.Lesson
 import com.example.ui.components.AudioSpeakerButton
+import com.example.ui.components.InterstitialAdDialog
+import com.example.ui.components.SponsoredAdBanner
 import com.example.ui.theme.ErrorRed
 import com.example.ui.theme.GoldYellow
 import com.example.ui.theme.SuccessGreen
@@ -39,6 +41,8 @@ import com.example.util.SpeechManager
 @Composable
 fun LessonPlayerScreen(
     lesson: Lesson,
+    isPremium: Boolean = false,
+    onOpenSubscriptions: () -> Unit = {},
     onPlayAudio: (String) -> Unit,
     onCompleteLesson: (Int) -> Unit,
     onExit: () -> Unit
@@ -54,6 +58,7 @@ fun LessonPlayerScreen(
     var hasAnswered by remember { mutableStateOf(false) }
     var isCorrect by remember { mutableStateOf(false) }
     var isLessonCompleted by remember { mutableStateOf(false) }
+    var showInterstitialAd by remember { mutableStateOf(false) }
 
     val currentExercise = if (currentIndex < exercises.size) exercises[currentIndex] else null
 
@@ -83,10 +88,32 @@ fun LessonPlayerScreen(
     }
 
     if (isLessonCompleted) {
+        if (showInterstitialAd && !isPremium) {
+            InterstitialAdDialog(
+                isPremium = false,
+                onDismiss = {
+                    showInterstitialAd = false
+                    onCompleteLesson(lesson.xpReward)
+                },
+                onUpgradeClick = {
+                    showInterstitialAd = false
+                    onOpenSubscriptions()
+                }
+            )
+        }
+
         LessonSuccessCelebration(
             lessonTitle = lesson.title,
             xpEarned = lesson.xpReward,
-            onFinish = { onCompleteLesson(lesson.xpReward) }
+            isPremium = isPremium,
+            onOpenSubscriptions = onOpenSubscriptions,
+            onFinish = {
+                if (!isPremium) {
+                    showInterstitialAd = true
+                } else {
+                    onCompleteLesson(lesson.xpReward)
+                }
+            }
         )
         return
     }
@@ -546,6 +573,8 @@ fun LessonPlayerScreen(
 fun LessonSuccessCelebration(
     lessonTitle: String,
     xpEarned: Int,
+    isPremium: Boolean = false,
+    onOpenSubscriptions: () -> Unit = {},
     onFinish: () -> Unit
 ) {
     Box(
@@ -597,7 +626,15 @@ fun LessonSuccessCelebration(
                 }
             }
 
-            Spacer(modifier = Modifier.height(40.dp))
+            Spacer(modifier = Modifier.height(20.dp))
+
+            // Sponsored Ad Banner for free tier
+            SponsoredAdBanner(
+                isPremium = isPremium,
+                onUpgradeClick = onOpenSubscriptions
+            )
+
+            Spacer(modifier = Modifier.height(24.dp))
 
             Button(
                 onClick = onFinish,

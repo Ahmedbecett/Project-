@@ -22,6 +22,7 @@ import androidx.compose.ui.unit.sp
 import com.example.data.model.*
 import com.example.data.repository.CourseData
 import com.example.ui.components.LevelSelectorPills
+import com.example.ui.components.SponsoredAdBanner
 import com.example.ui.theme.GoldYellow
 import com.example.ui.theme.PurpleAccent
 import com.example.ui.theme.SuccessGreen
@@ -33,6 +34,7 @@ fun LearnScreen(
     completedLessons: Set<String>,
     dailyXp: Int,
     dailyGoalXp: Int,
+    isPremium: Boolean,
     isLevelUnlocked: (CefrLevel) -> Boolean,
     onLevelSelected: (CefrLevel) -> Unit,
     onLessonClick: (Lesson) -> Unit,
@@ -56,6 +58,15 @@ fun LearnScreen(
                 selectedLevel = currentLevel,
                 isLevelUnlocked = isLevelUnlocked,
                 onLevelSelected = onLevelSelected
+            )
+        }
+
+        // Sponsored Ad banner for free tier
+        item {
+            SponsoredAdBanner(
+                isPremium = isPremium,
+                onUpgradeClick = onOpenSubscriptions,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
             )
         }
 

@@ -38,7 +38,7 @@ fun ContactDeveloperScreen(
     onNavigateToSubscriptions: () -> Unit
 ) {
     val context = LocalContext.current
-    val developerEmail = "ahmedbecetti@gmail.com"
+    val developerEmail = "ahmedbecetti41@gmail.com"
 
     var senderName by remember { mutableStateOf("") }
     var senderEmail by remember { mutableStateOf("") }

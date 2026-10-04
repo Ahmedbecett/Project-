@@ -83,7 +83,7 @@ Realistic, interactive dialogue roleplay with speech recognition & instant pronu
 ## 👨‍💻 Developer & Support / المطور والمساعدة
 
 - **Developer**: Ahmed Becetti
-- **Email**: [ahmedbecetti@gmail.com](mailto:ahmedbecetti@gmail.com)
+- **Email**: [ahmedbecetti41@gmail.com](mailto:ahmedbecetti41@gmail.com)
 - **Support**: In-app Contact & Feedback form with one-tap email dispatch.
 
 ---
