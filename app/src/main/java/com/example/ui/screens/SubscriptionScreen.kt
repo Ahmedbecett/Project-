@@ -1,5 +1,11 @@
 package com.example.ui.screens
 
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
+import android.content.Intent
+import android.net.Uri
+import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -17,11 +23,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.data.model.PaymentMethod
+import com.example.data.model.SubscriptionPlan
 import com.example.ui.theme.GoldYellow
 import com.example.ui.theme.IndigoPrimary
 import com.example.ui.theme.SuccessGreen
@@ -29,28 +38,47 @@ import com.example.ui.theme.SuccessGreen
 @Composable
 fun SubscriptionScreen(
     isPremium: Boolean,
-    onUpgradePremium: () -> Unit,
+    onSubmitPayment: (String, String, SubscriptionPlan, PaymentMethod, String, String) -> Unit,
     onBack: () -> Unit
 ) {
-    var selectedPlanIsYearly by remember { mutableStateOf(true) }
-    var showSuccessDialog by remember { mutableStateOf(false) }
+    val context = LocalContext.current
+    val baridiMobAccount = "002440629137"
+    val binanceWallet = "0x0ccf01Ce03c1A485a130Ae63607e922Ff6772191"
 
-    if (showSuccessDialog) {
+    var selectedPlan by remember { mutableStateOf(SubscriptionPlan.MONTHLY_3) }
+    var selectedMethod by remember { mutableStateOf(PaymentMethod.BARIDIMOB) }
+
+    var userNameInput by remember { mutableStateOf("") }
+    var userContactInput by remember { mutableStateOf("") }
+    var transactionRefInput by remember { mutableStateOf("") }
+    var notesInput by remember { mutableStateOf("") }
+
+    var paymentSubmittedSuccess by remember { mutableStateOf(false) }
+
+    if (paymentSubmittedSuccess) {
         AlertDialog(
-            onDismissRequest = { showSuccessDialog = false },
+            onDismissRequest = { paymentSubmittedSuccess = false },
             title = {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(text = "👑", fontSize = 28.sp)
+                    Text(text = "🎉", fontSize = 28.sp)
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("LinguaQuest Premium Active!", fontWeight = FontWeight.Bold)
+                    Text("تم إرسال طلب الاشتراك بنجاح!", fontWeight = FontWeight.Bold)
                 }
             },
             text = {
-                Text("Congratulations! You now have unrestricted access to all C1/C2 courses, unlimited realistic dialogues, digital certificates, and ad-free learning.")
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("شكراً لك! تم استلام بيانات المعاملة وسيتم مراجعتها وتفعيل باقة ${selectedPlan.titleAr} في أقرب وقت.")
+                    Text("يمكنك أيضاً إرسال إشعار مباشر عبر البريد إلى ahmedbecetti@gmail.com لتسريع التفعيل.")
+                }
             },
             confirmButton = {
-                Button(onClick = { showSuccessDialog = false }) {
-                    Text("Start Exploring")
+                Button(
+                    onClick = {
+                        paymentSubmittedSuccess = false
+                        onBack()
+                    }
+                ) {
+                    Text("حسناً")
                 }
             }
         )
@@ -77,7 +105,7 @@ fun SubscriptionScreen(
                     }
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = "LinguaQuest Premium",
+                        text = "ترقية الباقة واشتراكات الدفع",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold
                     )
@@ -90,24 +118,24 @@ fun SubscriptionScreen(
                 .fillMaxSize()
                 .padding(padding)
                 .verticalScroll(rememberScrollState())
-                .padding(20.dp),
+                .padding(16.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Crown Hero
+            // Header
             Surface(
                 shape = CircleShape,
                 color = GoldYellow.copy(alpha = 0.15f),
-                modifier = Modifier.size(72.dp)
+                modifier = Modifier.size(68.dp)
             ) {
                 Box(contentAlignment = Alignment.Center) {
-                    Text(text = "👑", fontSize = 36.sp)
+                    Text(text = "👑", fontSize = 34.sp)
                 }
             }
 
-            Spacer(modifier = Modifier.height(14.dp))
+            Spacer(modifier = Modifier.height(10.dp))
 
             Text(
-                text = if (isPremium) "You are a Premium Member!" else "Unlock Complete Fluency",
+                text = if (isPremium) "أنت مشترك في الباقة المميزة (VIP)" else "فتح جميع المستويات والذكاء الاصطناعي",
                 style = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.Black,
                 color = MaterialTheme.colorScheme.primary,
@@ -115,62 +143,88 @@ fun SubscriptionScreen(
             )
 
             Text(
-                text = "Master all levels A1 through C2 with unlimited conversations, official certificates, and ad-free experience.",
-                style = MaterialTheme.typography.bodyMedium,
+                text = "المستوى A1 مجاني للجميع. المستويات (A2, B1, B2, C1, C2) ومحادثات الذكاء الاصطناعي والشهادات تتطلب اشتراكاً بتكلفة متوسطة ومناسبة.",
+                style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,
-                modifier = Modifier.padding(top = 4.dp, bottom = 20.dp)
+                modifier = Modifier.padding(top = 4.dp, bottom = 16.dp)
             )
 
-            // Monthly vs Yearly Switcher
-            Surface(
-                shape = RoundedCornerShape(16.dp),
-                color = MaterialTheme.colorScheme.surfaceVariant,
+            // Step 1: Select Plan
+            Text(
+                text = "1. اختر باقة الاشتراك المناسبة لك:",
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.Bold,
                 modifier = Modifier.fillMaxWidth()
-            ) {
-                Row(modifier = Modifier.padding(4.dp)) {
-                    Box(
-                        modifier = Modifier
-                            .weight(1f)
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(if (!selectedPlanIsYearly) MaterialTheme.colorScheme.primary else Color.Transparent)
-                            .clickable { selectedPlanIsYearly = false }
-                            .padding(vertical = 10.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = "Monthly Plan",
-                            fontWeight = FontWeight.Bold,
-                            color = if (!selectedPlanIsYearly) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
+            )
+            Spacer(modifier = Modifier.height(8.dp))
 
-                    Box(
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                SubscriptionPlan.values().forEach { plan ->
+                    val isSelected = plan == selectedPlan
+                    Card(
+                        shape = RoundedCornerShape(16.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface
+                        ),
+                        border = BorderStroke(
+                            2.dp,
+                            if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant
+                        ),
                         modifier = Modifier
-                            .weight(1f)
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(if (selectedPlanIsYearly) MaterialTheme.colorScheme.primary else Color.Transparent)
-                            .clickable { selectedPlanIsYearly = true }
-                            .padding(vertical = 10.dp),
-                        contentAlignment = Alignment.Center
+                            .fillMaxWidth()
+                            .clickable { selectedPlan = plan }
+                            .testTag("plan_card_${plan.id}")
                     ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(
-                                text = "Yearly Plan",
-                                fontWeight = FontWeight.Bold,
-                                color = if (selectedPlanIsYearly) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
+                        Row(
+                            modifier = Modifier.padding(14.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            RadioButton(
+                                selected = isSelected,
+                                onClick = { selectedPlan = plan }
                             )
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Surface(
-                                shape = RoundedCornerShape(6.dp),
-                                color = GoldYellow
-                            ) {
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Column(modifier = Modifier.weight(1f)) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text(
+                                        text = plan.titleAr,
+                                        fontWeight = FontWeight.Bold,
+                                        style = MaterialTheme.typography.bodyMedium
+                                    )
+                                    plan.badge?.let { b ->
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        Surface(
+                                            shape = RoundedCornerShape(6.dp),
+                                            color = GoldYellow
+                                        ) {
+                                            Text(
+                                                text = b,
+                                                fontSize = 10.sp,
+                                                fontWeight = FontWeight.Black,
+                                                color = Color.Black,
+                                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                            )
+                                        }
+                                    }
+                                }
                                 Text(
-                                    text = "Save 50%",
-                                    fontSize = 10.sp,
+                                    text = "صالحة لمدة ${plan.durationDays} يوماً لجميع اللغات والمستويات",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            Column(horizontalAlignment = Alignment.End) {
+                                Text(
+                                    text = "${plan.priceDzd} دج",
                                     fontWeight = FontWeight.Black,
-                                    color = Color.Black,
-                                    modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
+                                    fontSize = 16.sp,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                                Text(
+                                    text = "${plan.priceUsdt} USDT",
+                                    fontSize = 11.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
                         }
@@ -180,115 +234,260 @@ fun SubscriptionScreen(
 
             Spacer(modifier = Modifier.height(20.dp))
 
-            // Pricing Card
-            Card(
-                shape = RoundedCornerShape(20.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
-                border = BorderStroke(2.dp, if (selectedPlanIsYearly) GoldYellow else MaterialTheme.colorScheme.primary),
+            // Step 2: Choose Payment Method
+            Text(
+                text = "2. اختر وسيلة الدفع (بريدي موب أو بينانس):",
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.Bold,
                 modifier = Modifier.fillMaxWidth()
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                Column(
-                    modifier = Modifier.padding(20.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    Text(
-                        text = if (selectedPlanIsYearly) "Yearly Unlimited" else "Monthly Flexible",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Row(verticalAlignment = Alignment.Bottom) {
-                        Text(
-                            text = if (selectedPlanIsYearly) "$59.99" else "$9.99",
-                            fontSize = 36.sp,
-                            fontWeight = FontWeight.Black,
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                        Text(
-                            text = if (selectedPlanIsYearly) " / year ($4.99/mo)" else " / month",
-                            fontSize = 14.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(bottom = 6.dp, start = 4.dp)
-                        )
+                PaymentMethod.values().forEach { method ->
+                    val isSelected = method == selectedMethod
+                    Card(
+                        shape = RoundedCornerShape(16.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = if (isSelected) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surface
+                        ),
+                        border = BorderStroke(
+                            2.dp,
+                            if (isSelected) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.outlineVariant
+                        ),
+                        modifier = Modifier
+                            .weight(1f)
+                            .clickable { selectedMethod = method }
+                            .testTag("method_${method.name}")
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(12.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Text(text = method.icon, fontSize = 28.sp)
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = if (method == PaymentMethod.BARIDIMOB) "بريدي موب سيسيبي" else "بينانس USDT",
+                                fontWeight = FontWeight.Bold,
+                                style = MaterialTheme.typography.bodyMedium,
+                                textAlign = TextAlign.Center
+                            )
+                        }
                     }
                 }
             }
 
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(14.dp))
 
-            // Feature Checklist
+            // Payment Details Box with Copy
+            Card(
+                shape = RoundedCornerShape(18.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    if (selectedMethod == PaymentMethod.BARIDIMOB) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(text = "📮", fontSize = 22.sp)
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "بيانات التحويل عبر تطبيق بريدي موب (BaridiMob):",
+                                fontWeight = FontWeight.Bold,
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Text(text = "اسم المستفيد: Ahmed Becetti", style = MaterialTheme.typography.bodySmall)
+                        Text(text = "المبلغ المطلوب: ${selectedPlan.priceDzd} دج", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+
+                        Spacer(modifier = Modifier.height(10.dp))
+
+                        Surface(
+                            shape = RoundedCornerShape(12.dp),
+                            color = MaterialTheme.colorScheme.surface,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Column {
+                                    Text(text = "رقم الحساب / RIP البريدي:", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    Text(
+                                        text = baridiMobAccount,
+                                        fontWeight = FontWeight.Black,
+                                        fontSize = 18.sp,
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+                                }
+                                FilledTonalIconButton(
+                                    onClick = {
+                                        val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                                        clipboard.setPrimaryClip(ClipData.newPlainText("BaridiMob", baridiMobAccount))
+                                        Toast.makeText(context, "تم نسخ رقم بريدي موب: $baridiMobAccount", Toast.LENGTH_SHORT).show()
+                                    }
+                                ) {
+                                    Icon(imageVector = Icons.Default.ContentCopy, contentDescription = "Copy")
+                                }
+                            }
+                        }
+                    } else {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(text = "🪙", fontSize = 22.sp)
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "بيانات الدفع عبر محفظة بينانس (Binance Pay / USDT):",
+                                fontWeight = FontWeight.Bold,
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Text(text = "الشبكة: BNB Smart Chain (BEP20)", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodySmall)
+                        Text(text = "المبلغ المطلوب: ${selectedPlan.priceUsdt} USDT", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+
+                        Spacer(modifier = Modifier.height(10.dp))
+
+                        Surface(
+                            shape = RoundedCornerShape(12.dp),
+                            color = MaterialTheme.colorScheme.surface,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(text = "عنوان المحفظة (BEP20):", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    Text(
+                                        text = binanceWallet,
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 11.sp,
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+                                }
+                                FilledTonalIconButton(
+                                    onClick = {
+                                        val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                                        clipboard.setPrimaryClip(ClipData.newPlainText("Binance Wallet", binanceWallet))
+                                        Toast.makeText(context, "تم نسخ محفظة بينانس", Toast.LENGTH_SHORT).show()
+                                    }
+                                ) {
+                                    Icon(imageVector = Icons.Default.ContentCopy, contentDescription = "Copy")
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(20.dp))
+
+            // Step 3: Enter Transaction Confirmation Details
             Text(
-                text = "Premium Privileges:",
+                text = "3. أدخل تفاصيل المعاملة بعد التحويل لتفعيل حسابك:",
                 style = MaterialTheme.typography.titleSmall,
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.fillMaxWidth()
             )
             Spacer(modifier = Modifier.height(10.dp))
 
-            val features = listOf(
-                "Full Access to all CEFR Levels (A1, A2, B1, B2, C1, C2)",
-                "Unlimited Realistic Conversation Dialogues & Roleplay",
-                "Advanced Speech Pronunciation Scoring & Feedback",
-                "Verifiable Digital Certificates of Mastery",
-                "All Level Final Examinations with In-Depth Reports",
-                "Completely Ad-Free, Focused Learning Journey",
-                "Offline Mode & Spaced Repetition Vocabulary"
+            OutlinedTextField(
+                value = userNameInput,
+                onValueChange = { userNameInput = it },
+                label = { Text("الاسم الكامل") },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth()
             )
 
-            features.forEach { feature ->
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 4.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.CheckCircle,
-                        contentDescription = null,
-                        tint = SuccessGreen,
-                        modifier = Modifier.size(20.dp)
-                    )
-                    Spacer(modifier = Modifier.width(10.dp))
-                    Text(
-                        text = feature,
-                        style = MaterialTheme.typography.bodyMedium
-                    )
-                }
-            }
+            Spacer(modifier = Modifier.height(8.dp))
 
-            Spacer(modifier = Modifier.height(30.dp))
+            OutlinedTextField(
+                value = userContactInput,
+                onValueChange = { userContactInput = it },
+                label = { Text("رقم الهاتف أو البريد الإلكتروني للتواصل") },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth()
+            )
 
+            Spacer(modifier = Modifier.height(8.dp))
+
+            OutlinedTextField(
+                value = transactionRefInput,
+                onValueChange = { transactionRefInput = it },
+                label = { Text(if (selectedMethod == PaymentMethod.BARIDIMOB) "رقم العملية / وصل التحويل في بريدي موب" else "معرف المعاملة TxID في بينانس") },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            OutlinedTextField(
+                value = notesInput,
+                onValueChange = { notesInput = it },
+                label = { Text("ملاحظة إضافية (اختياري)") },
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            Spacer(modifier = Modifier.height(20.dp))
+
+            // Submit Button
             Button(
                 onClick = {
-                    onUpgradePremium()
-                    showSuccessDialog = true
+                    if (userNameInput.isBlank() || transactionRefInput.isBlank()) {
+                        Toast.makeText(context, "يرجى كتابة اسمك ورقم المعاملة", Toast.LENGTH_SHORT).show()
+                    } else {
+                        onSubmitPayment(
+                            userNameInput,
+                            userContactInput,
+                            selectedPlan,
+                            selectedMethod,
+                            transactionRefInput,
+                            notesInput
+                        )
+                        paymentSubmittedSuccess = true
+                    }
                 },
-                enabled = !isPremium,
                 shape = RoundedCornerShape(16.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = if (isPremium) SuccessGreen else MaterialTheme.colorScheme.primary
-                ),
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(54.dp)
-                    .testTag("activate_premium_button")
+                    .testTag("submit_subscription_button")
             ) {
+                Icon(imageVector = Icons.Default.Send, contentDescription = null)
+                Spacer(modifier = Modifier.width(8.dp))
                 Text(
-                    text = if (isPremium) "Premium Already Active ✓" else "Start 7-Day Free Trial",
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold
+                    text = "إرسال طلب التفعيل إلى المطور",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 16.sp
                 )
             }
 
-            Spacer(modifier = Modifier.height(10.dp))
+            Spacer(modifier = Modifier.height(12.dp))
 
-            Text(
-                text = "Cancel anytime in Google Play Store settings. No commitment required.",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                textAlign = TextAlign.Center
-            )
+            // Email direct link to Ahmed Becetti
+            OutlinedButton(
+                onClick = {
+                    val emailIntent = Intent(Intent.ACTION_SENDTO).apply {
+                        data = Uri.parse("mailto:ahmedbecetti@gmail.com")
+                        putExtra(Intent.EXTRA_SUBJECT, "تأكيد دفع اشتراك LinguaQuest: ${selectedPlan.titleAr}")
+                        putExtra(Intent.EXTRA_TEXT, "الاسم: $userNameInput\nرقم الهاتف/الإيميل: $userContactInput\nالباقة: ${selectedPlan.titleAr}\nطريقة الدفع: ${selectedMethod.title}\nرقم المعاملة: $transactionRefInput")
+                    }
+                    try {
+                        context.startActivity(Intent.createChooser(emailIntent, "إرسال وصل الدفع"))
+                    } catch (e: Exception) {
+                        Toast.makeText(context, "تم إرسال الطلب داخلياً إلى المسؤول", Toast.LENGTH_SHORT).show()
+                    }
+                },
+                shape = RoundedCornerShape(14.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text("إرسال نسخة من الوصل بالبريد (ahmedbecetti@gmail.com)")
+            }
         }
     }
 }

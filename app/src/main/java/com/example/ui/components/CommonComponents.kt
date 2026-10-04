@@ -244,6 +244,7 @@ fun LinguaBottomNavBar(
 @Composable
 fun LevelSelectorPills(
     selectedLevel: CefrLevel,
+    isLevelUnlocked: (CefrLevel) -> Boolean = { true },
     onLevelSelected: (CefrLevel) -> Unit
 ) {
     Row(
@@ -254,6 +255,7 @@ fun LevelSelectorPills(
     ) {
         CefrLevel.values().forEach { level ->
             val isSelected = level == selectedLevel
+            val isUnlocked = isLevelUnlocked(level)
             val bgColor by animateColorAsState(
                 targetValue = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
                 label = "pill_bg"
@@ -274,12 +276,26 @@ fun LevelSelectorPills(
                     .testTag("level_pill_${level.code}"),
                 contentAlignment = Alignment.Center
             ) {
-                Text(
-                    text = level.code,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 14.sp,
-                    color = textColor
-                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center
+                ) {
+                    Text(
+                        text = level.code,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 13.sp,
+                        color = textColor
+                    )
+                    if (!isUnlocked) {
+                        Spacer(modifier = Modifier.width(2.dp))
+                        Icon(
+                            imageVector = Icons.Default.Lock,
+                            contentDescription = "Locked",
+                            tint = if (isSelected) Color.White else GoldYellow,
+                            modifier = Modifier.size(11.dp)
+                        )
+                    }
+                }
             }
         }
     }

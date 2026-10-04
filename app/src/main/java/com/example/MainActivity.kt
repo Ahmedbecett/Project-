@@ -51,6 +51,19 @@ class MainActivity : ComponentActivity() {
             val activeCertificate by viewModel.activeCertificate.collectAsState()
             val activeConversation by viewModel.activeConversation.collectAsState()
 
+            // Admin & AI State
+            val paymentRequests by viewModel.paymentRequests.collectAsState()
+            val registeredUsers by viewModel.registeredUsers.collectAsState()
+            val dailyRevenueDzd by viewModel.dailyRevenueDzd.collectAsState()
+            val dailyRevenueUsdt by viewModel.dailyRevenueUsdt.collectAsState()
+            val monthlyRevenueDzd by viewModel.monthlyRevenueDzd.collectAsState()
+            val monthlyRevenueUsdt by viewModel.monthlyRevenueUsdt.collectAsState()
+            val totalRevenueDzd by viewModel.totalRevenueDzd.collectAsState()
+            val totalRevenueUsdt by viewModel.totalRevenueUsdt.collectAsState()
+            val isAdminAuthenticated by viewModel.isAdminAuthenticated.collectAsState()
+            val aiMessages by viewModel.aiMessages.collectAsState()
+            val isAiThinking by viewModel.isAiThinking.collectAsState()
+
             LinguaQuestTheme(darkTheme = isDarkModeUser || isDarkThemeSystem) {
                 // Handle system back button for all sub-screens
                 BackHandler(enabled = currentScreen != AppScreen.MAIN_LEARN) {
@@ -113,10 +126,13 @@ class MainActivity : ComponentActivity() {
                                     completedLessons = completedLessons,
                                     dailyXp = dailyXp,
                                     dailyGoalXp = dailyGoalXp,
+                                    isLevelUnlocked = { level -> viewModel.isLevelUnlocked(level) },
                                     onLevelSelected = { viewModel.selectLevel(it) },
                                     onLessonClick = { lesson -> viewModel.startLesson(lesson) },
                                     onTakePlacementTest = { viewModel.startPlacementTest() },
-                                    onStartLevelExam = { level -> viewModel.startExam(level) }
+                                    onStartLevelExam = { level -> viewModel.startExam(level) },
+                                    onOpenAiTutor = { viewModel.navigateTo(AppScreen.AI_TUTOR) },
+                                    onOpenSubscriptions = { viewModel.navigateTo(AppScreen.SUBSCRIPTIONS) }
                                 )
                             }
 
@@ -166,7 +182,9 @@ class MainActivity : ComponentActivity() {
                                     onSpeechSpeedChange = { speed -> viewModel.setSpeechSpeed(speed) },
                                     onNavigateToContact = { viewModel.navigateTo(AppScreen.CONTACT_DEVELOPER) },
                                     onNavigateToHelp = { viewModel.navigateTo(AppScreen.HELP_FAQ) },
-                                    onNavigateToSubscriptions = { viewModel.navigateTo(AppScreen.SUBSCRIPTIONS) }
+                                    onNavigateToSubscriptions = { viewModel.navigateTo(AppScreen.SUBSCRIPTIONS) },
+                                    onNavigateToAiTutor = { viewModel.navigateTo(AppScreen.AI_TUTOR) },
+                                    onNavigateToAdmin = { viewModel.navigateTo(AppScreen.ADMIN_DASHBOARD) }
                                 )
                             }
 
@@ -242,7 +260,45 @@ class MainActivity : ComponentActivity() {
                             AppScreen.SUBSCRIPTIONS -> {
                                 SubscriptionScreen(
                                     isPremium = isPremium,
-                                    onUpgradePremium = { viewModel.upgradeToPremium() },
+                                    onSubmitPayment = { name, contact, plan, method, ref, notes ->
+                                        viewModel.submitPayment(name, contact, plan, method, ref, notes)
+                                    },
+                                    onBack = { viewModel.navigateBack() }
+                                )
+                            }
+
+                            AppScreen.AI_TUTOR -> {
+                                AiTutorScreen(
+                                    currentLanguage = selectedLanguage,
+                                    currentLevel = currentLevel,
+                                    isPremium = isPremium,
+                                    messages = aiMessages,
+                                    isThinking = isAiThinking,
+                                    onSendMessage = { text -> viewModel.sendAiTutorMessage(text) },
+                                    onPlayAudio = { phrase -> viewModel.playAudio(phrase) },
+                                    onUpgradeClick = { viewModel.navigateTo(AppScreen.SUBSCRIPTIONS) },
+                                    onBack = { viewModel.navigateBack() }
+                                )
+                            }
+
+                            AppScreen.ADMIN_DASHBOARD -> {
+                                AdminDashboardScreen(
+                                    isAuthenticated = isAdminAuthenticated,
+                                    paymentRequests = paymentRequests,
+                                    registeredUsers = registeredUsers,
+                                    dailyRevenueDzd = dailyRevenueDzd,
+                                    dailyRevenueUsdt = dailyRevenueUsdt,
+                                    monthlyRevenueDzd = monthlyRevenueDzd,
+                                    monthlyRevenueUsdt = monthlyRevenueUsdt,
+                                    totalRevenueDzd = totalRevenueDzd,
+                                    totalRevenueUsdt = totalRevenueUsdt,
+                                    onVerifyPin = { pin -> viewModel.verifyAdminPin(pin) },
+                                    onLockAdmin = { viewModel.lockAdmin() },
+                                    onApprovePayment = { reqId -> viewModel.approvePayment(reqId) },
+                                    onRejectPayment = { reqId -> viewModel.rejectPayment(reqId) },
+                                    onManualAddUser = { name, contact, level, isVip ->
+                                        viewModel.manualAddUser(name, contact, level, isVip)
+                                    },
                                     onBack = { viewModel.navigateBack() }
                                 )
                             }

@@ -149,3 +149,96 @@ data class LeaderboardUser(
     val avatarInitial: String,
     val isCurrentUser: Boolean = false
 )
+
+// --- Monetization & Payment Models ---
+
+enum class PaymentMethod(val title: String, val subtitle: String, val icon: String) {
+    BARIDIMOB(
+        "BaridiMob / CCP (بريدي موب)",
+        "RIP: 002440629137 • Ahmed Becetti",
+        "📮"
+    ),
+    BINANCE_PAY(
+        "Binance Pay / USDT (بينانس)",
+        "BNB Smart Chain (BEP20) • 0x0ccf...2191",
+        "🪙"
+    )
+}
+
+enum class SubscriptionPlan(
+    val id: String,
+    val titleAr: String,
+    val titleEn: String,
+    val durationDays: Int,
+    val priceDzd: Int,
+    val priceUsdt: Double,
+    val badge: String? = null
+) {
+    MONTHLY_1(
+        "plan_1m",
+        "اشتراك شهر واحد (1 Month)",
+        "1 Month Full Access",
+        30,
+        1500,
+        8.0
+    ),
+    MONTHLY_3(
+        "plan_3m",
+        "اشتراك 3 أشهر (3 Months)",
+        "3 Months Full Access",
+        90,
+        3600,
+        19.0,
+        "توفير 20%"
+    ),
+    YEARLY_VIP(
+        "plan_1y",
+        "اشتراك سنوي شامل (1 Year VIP)",
+        "1 Year All Levels + AI VIP",
+        365,
+        7500,
+        39.0,
+        "الأكثر طلباً - توفير 58%"
+    )
+}
+
+enum class PaymentStatus {
+    PENDING,
+    APPROVED,
+    REJECTED
+}
+
+data class PaymentRequest(
+    val id: String,
+    val userName: String,
+    val userContact: String,
+    val plan: SubscriptionPlan,
+    val method: PaymentMethod,
+    val amountDzd: Int,
+    val amountUsdt: Double,
+    val transactionRef: String,
+    val receiptNotes: String = "",
+    val timestamp: Long = System.currentTimeMillis(),
+    val status: PaymentStatus = PaymentStatus.PENDING
+)
+
+data class RegisteredUser(
+    val id: String,
+    val name: String,
+    val emailOrPhone: String,
+    val registrationDate: String,
+    val currentLevel: CefrLevel = CefrLevel.A1,
+    val isPremium: Boolean = false,
+    val premiumExpiryDate: String = "Free Tier",
+    val totalXp: Int = 0
+)
+
+data class AiChatMessage(
+    val id: String,
+    val isUser: Boolean,
+    val message: String,
+    val translation: String = "",
+    val grammarTips: String = "",
+    val audioPhrase: String = message,
+    val timestamp: Long = System.currentTimeMillis()
+)

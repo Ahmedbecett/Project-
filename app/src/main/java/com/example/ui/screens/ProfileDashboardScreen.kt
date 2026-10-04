@@ -47,7 +47,9 @@ fun ProfileDashboardScreen(
     onSpeechSpeedChange: (Float) -> Unit,
     onNavigateToContact: () -> Unit,
     onNavigateToHelp: () -> Unit,
-    onNavigateToSubscriptions: () -> Unit
+    onNavigateToSubscriptions: () -> Unit,
+    onNavigateToAiTutor: () -> Unit,
+    onNavigateToAdmin: () -> Unit
 ) {
     LazyColumn(
         modifier = Modifier
@@ -218,6 +220,61 @@ fun ProfileDashboardScreen(
                 }
             }
 
+            // AI Language Tutor Card
+            Card(
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 4.dp)
+                    .clickable { onNavigateToAiTutor() }
+                    .testTag("dashboard_ai_tutor_card")
+            ) {
+                Row(
+                    modifier = Modifier.padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Surface(
+                        shape = CircleShape,
+                        color = Color(0xFF8B5CF6),
+                        modifier = Modifier.size(40.dp)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Text(text = "🤖", fontSize = 20.sp)
+                        }
+                    }
+                    Spacer(modifier = Modifier.width(14.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                text = "مُعلّم الذكاء الاصطناعي (AI Tutor)",
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.Black
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Surface(
+                                shape = RoundedCornerShape(6.dp),
+                                color = GoldYellow
+                            ) {
+                                Text(
+                                    text = "Gemini",
+                                    fontSize = 9.sp,
+                                    fontWeight = FontWeight.Black,
+                                    color = Color.Black,
+                                    modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp)
+                                )
+                            }
+                        }
+                        Text(
+                            text = "تدرّب على المحادثة، تصحيح القواعد، والطلاقة اللغوية",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
+                        )
+                    }
+                    Icon(imageVector = Icons.Default.ChevronRight, contentDescription = null)
+                }
+            }
+
             // Subscriptions Card
             Card(
                 shape = RoundedCornerShape(16.dp),
@@ -245,12 +302,57 @@ fun ProfileDashboardScreen(
                     Spacer(modifier = Modifier.width(14.dp))
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = "LinguaQuest Premium Plans",
+                            text = "اشتراكات بريدي موب وبينانس (VIP Plans)",
                             style = MaterialTheme.typography.titleSmall,
                             fontWeight = FontWeight.Bold
                         )
                         Text(
-                            text = if (isPremium) "Active: Unlimited access unlocked" else "Unlock all C1/C2 courses & certifications",
+                            text = "BaridiMob 002440629137 • Binance USDT BEP20",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Icon(imageVector = Icons.Default.ChevronRight, contentDescription = null)
+                }
+            }
+
+            // Admin Portal Card (Protected for Ahmed Becetti)
+            Card(
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 4.dp)
+                    .clickable { onNavigateToAdmin() }
+                    .testTag("dashboard_admin_portal_card")
+            ) {
+                Row(
+                    modifier = Modifier.padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Surface(
+                        shape = CircleShape,
+                        color = MaterialTheme.colorScheme.primaryContainer,
+                        modifier = Modifier.size(40.dp)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(
+                                imageVector = Icons.Default.AdminPanelSettings,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    }
+                    Spacer(modifier = Modifier.width(14.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "لوحة تحكم المسؤول (Admin Portal)",
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = "متابعة المسجلين، الدخل اليومي والشهري، وقبول طلبات الدفع",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )

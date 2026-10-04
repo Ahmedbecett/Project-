@@ -23,6 +23,7 @@ import com.example.data.model.*
 import com.example.data.repository.CourseData
 import com.example.ui.components.LevelSelectorPills
 import com.example.ui.theme.GoldYellow
+import com.example.ui.theme.PurpleAccent
 import com.example.ui.theme.SuccessGreen
 
 @Composable
@@ -32,12 +33,16 @@ fun LearnScreen(
     completedLessons: Set<String>,
     dailyXp: Int,
     dailyGoalXp: Int,
+    isLevelUnlocked: (CefrLevel) -> Boolean,
     onLevelSelected: (CefrLevel) -> Unit,
     onLessonClick: (Lesson) -> Unit,
     onTakePlacementTest: () -> Unit,
-    onStartLevelExam: (CefrLevel) -> Unit
+    onStartLevelExam: (CefrLevel) -> Unit,
+    onOpenAiTutor: () -> Unit,
+    onOpenSubscriptions: () -> Unit
 ) {
     val lessons = CourseData.getLessonsForLevel(currentLanguage.id, currentLevel)
+    val isCurrentLevelUnlocked = isLevelUnlocked(currentLevel)
 
     LazyColumn(
         modifier = Modifier
@@ -49,8 +54,74 @@ fun LearnScreen(
         item {
             LevelSelectorPills(
                 selectedLevel = currentLevel,
+                isLevelUnlocked = isLevelUnlocked,
                 onLevelSelected = onLevelSelected
             )
+        }
+
+        // AI Language Tutor Banner Card
+        item {
+            Card(
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 6.dp)
+                    .clickable { onOpenAiTutor() }
+                    .testTag("ai_tutor_banner_card")
+            ) {
+                Row(
+                    modifier = Modifier.padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Surface(
+                        shape = CircleShape,
+                        color = PurpleAccent,
+                        modifier = Modifier.size(50.dp)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Text(text = "🤖", fontSize = 26.sp)
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.width(14.dp))
+
+                    Column(modifier = Modifier.weight(1f)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                text = "مُعلّم الذكاء الاصطناعي (AI Tutor)",
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.Black,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Surface(
+                                shape = RoundedCornerShape(6.dp),
+                                color = GoldYellow
+                            ) {
+                                Text(
+                                    text = "Gemini",
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Black,
+                                    color = Color.Black,
+                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 1.dp)
+                                )
+                            }
+                        }
+                        Text(
+                            text = "محادثة ذكية، تصحيح فوري للقواعد، ومحاكاة مواقف حقيقية بالصوت والنص.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.85f)
+                        )
+                    }
+
+                    Icon(
+                        imageVector = Icons.Default.ChatBubble,
+                        contentDescription = "Chat",
+                        tint = PurpleAccent
+                    )
+                }
+            }
         }
 
         // Daily Goal & Level Intro Header Card
@@ -60,7 +131,7 @@ fun LearnScreen(
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 8.dp)
+                    .padding(horizontal = 16.dp, vertical = 6.dp)
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Row(
@@ -68,13 +139,30 @@ fun LearnScreen(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Column {
-                            Text(
-                                text = "Level ${currentLevel.code}: ${currentLevel.title}",
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.primary
-                            )
+                        Column(modifier = Modifier.weight(1f)) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    text = "Level ${currentLevel.code}: ${currentLevel.title}",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                                if (currentLevel == CefrLevel.A1) {
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Surface(
+                                        shape = RoundedCornerShape(6.dp),
+                                        color = SuccessGreen.copy(alpha = 0.15f)
+                                    ) {
+                                        Text(
+                                            text = "مجاني 100%",
+                                            fontSize = 10.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = SuccessGreen,
+                                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                        )
+                                    }
+                                }
+                            }
                             Text(
                                 text = currentLevel.description,
                                 style = MaterialTheme.typography.bodySmall,
@@ -83,16 +171,25 @@ fun LearnScreen(
                         }
                         Surface(
                             shape = CircleShape,
-                            color = MaterialTheme.colorScheme.primary,
+                            color = if (isCurrentLevelUnlocked) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
                             modifier = Modifier.size(36.dp)
                         ) {
                             Box(contentAlignment = Alignment.Center) {
-                                Text(
-                                    text = currentLevel.code,
-                                    color = Color.White,
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 14.sp
-                                )
+                                if (isCurrentLevelUnlocked) {
+                                    Text(
+                                        text = currentLevel.code,
+                                        color = Color.White,
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 14.sp
+                                    )
+                                } else {
+                                    Icon(
+                                        imageVector = Icons.Default.Lock,
+                                        contentDescription = "Locked",
+                                        tint = GoldYellow,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
                             }
                         }
                     }
@@ -129,11 +226,53 @@ fun LearnScreen(
             }
         }
 
+        // Locked Level Banner if user is on Free Tier and looking at A2-C2
+        if (!isCurrentLevelUnlocked) {
+            item {
+                Card(
+                    shape = RoundedCornerShape(20.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.35f)),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 6.dp)
+                        .clickable { onOpenSubscriptions() }
+                ) {
+                    Column(
+                        modifier = Modifier.padding(16.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(imageVector = Icons.Default.Lock, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "هذا المستوى مدفوع (${currentLevel.code}) - المستوى A1 فقط مجاني",
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Text(
+                            text = "اشترك الآن عبر بريدي موب (002440629137) أو بينانس USDT لفتح جميع المستويات والذكاء الاصطناعي.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Spacer(modifier = Modifier.height(10.dp))
+                        Button(
+                            onClick = onOpenSubscriptions,
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Text("فتح الاشتراك (ابتداءً من 1,500 دج / 8 USDT)")
+                        }
+                    }
+                }
+            }
+        }
+
         // Diagnostic Placement Test Card
         item {
             Card(
                 shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f)),
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp, vertical = 6.dp)
@@ -147,13 +286,13 @@ fun LearnScreen(
                     Spacer(modifier = Modifier.width(12.dp))
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = "Take Diagnostic Placement Test",
+                            text = "اختبار تحديد المستوى (Placement Test)",
                             fontWeight = FontWeight.Bold,
                             style = MaterialTheme.typography.labelLarge,
                             color = MaterialTheme.colorScheme.onPrimaryContainer
                         )
                         Text(
-                            text = "Discover your precise level from A1 to C2 in 5 minutes.",
+                            text = "12 سؤالاً لتشخيص مستواك اللغوي بدقة وتحديد نقطة الانطلاق.",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
                         )
@@ -169,7 +308,6 @@ fun LearnScreen(
 
         // Section Title: Units & Courses
         item {
-            PaddingValues(horizontal = 16.dp, vertical = 8.dp)
             Text(
                 text = "Course Curriculum",
                 style = MaterialTheme.typography.titleSmall,
@@ -186,7 +324,14 @@ fun LearnScreen(
                 lesson = lesson,
                 unitIndex = index + 1,
                 isCompleted = isCompleted,
-                onClick = { onLessonClick(lesson) }
+                isLocked = !isCurrentLevelUnlocked,
+                onClick = {
+                    if (isCurrentLevelUnlocked) {
+                        onLessonClick(lesson)
+                    } else {
+                        onOpenSubscriptions()
+                    }
+                }
             )
         }
 
@@ -198,7 +343,10 @@ fun LearnScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp, vertical = 12.dp)
-                    .clickable { onStartLevelExam(currentLevel) }
+                    .clickable {
+                        if (isCurrentLevelUnlocked) onStartLevelExam(currentLevel)
+                        else onOpenSubscriptions()
+                    }
                     .testTag("level_exam_card_${currentLevel.code}")
             ) {
                 Row(
@@ -212,7 +360,7 @@ fun LearnScreen(
                     ) {
                         Box(contentAlignment = Alignment.Center) {
                             Icon(
-                                imageVector = Icons.Default.WorkspacePremium,
+                                imageVector = if (isCurrentLevelUnlocked) Icons.Default.WorkspacePremium else Icons.Default.Lock,
                                 contentDescription = "Exam",
                                 tint = Color.White
                             )
@@ -229,17 +377,22 @@ fun LearnScreen(
                             )
                         }
                         Text(
-                            text = "50 questions covering Grammar, Vocab, Reading & Listening. Pass to earn your digital certificate.",
+                            text = if (isCurrentLevelUnlocked)
+                                "50 questions covering Grammar, Vocab, Reading & Listening. Pass to earn your digital certificate."
+                            else "يتطلب اشتراكاً لإجراء الاختبار الرسمي والحصول على الشهادة المعتمدة.",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.8f)
                         )
                     }
                     Button(
-                        onClick = { onStartLevelExam(currentLevel) },
+                        onClick = {
+                            if (isCurrentLevelUnlocked) onStartLevelExam(currentLevel)
+                            else onOpenSubscriptions()
+                        },
                         colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary),
                         shape = RoundedCornerShape(12.dp)
                     ) {
-                        Text(text = "Exam", fontWeight = FontWeight.Bold)
+                        Text(text = if (isCurrentLevelUnlocked) "Exam" else "Unlock", fontWeight = FontWeight.Bold)
                     }
                 }
             }
@@ -252,12 +405,13 @@ fun LessonCardItem(
     lesson: Lesson,
     unitIndex: Int,
     isCompleted: Boolean,
+    isLocked: Boolean = false,
     onClick: () -> Unit
 ) {
     Card(
         shape = RoundedCornerShape(18.dp),
         colors = CardDefaults.cardColors(
-            containerColor = if (isCompleted) MaterialTheme.colorScheme.surface else MaterialTheme.colorScheme.surface
+            containerColor = MaterialTheme.colorScheme.surface
         ),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
         modifier = Modifier
@@ -270,14 +424,22 @@ fun LessonCardItem(
             modifier = Modifier.padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Unit Avatar / Completed Check
             Surface(
                 shape = CircleShape,
-                color = if (isCompleted) SuccessGreen else MaterialTheme.colorScheme.primaryContainer,
+                color = if (isLocked) MaterialTheme.colorScheme.surfaceVariant
+                else if (isCompleted) SuccessGreen
+                else MaterialTheme.colorScheme.primaryContainer,
                 modifier = Modifier.size(44.dp)
             ) {
                 Box(contentAlignment = Alignment.Center) {
-                    if (isCompleted) {
+                    if (isLocked) {
+                        Icon(
+                            imageVector = Icons.Default.Lock,
+                            contentDescription = "Locked",
+                            tint = GoldYellow,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    } else if (isCompleted) {
                         Icon(
                             imageVector = Icons.Default.Check,
                             contentDescription = "Completed",
@@ -338,10 +500,14 @@ fun LessonCardItem(
                 modifier = Modifier.testTag("start_lesson_${lesson.id}")
             ) {
                 Icon(
-                    imageVector = if (isCompleted) Icons.Default.Replay else Icons.Default.PlayCircle,
-                    contentDescription = "Start Lesson",
-                    tint = if (isCompleted) SuccessGreen else MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(32.dp)
+                    imageVector = if (isLocked) Icons.Default.Lock
+                    else if (isCompleted) Icons.Default.Replay
+                    else Icons.Default.PlayCircle,
+                    contentDescription = "Action",
+                    tint = if (isLocked) GoldYellow
+                    else if (isCompleted) SuccessGreen
+                    else MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(30.dp)
                 )
             }
         }
