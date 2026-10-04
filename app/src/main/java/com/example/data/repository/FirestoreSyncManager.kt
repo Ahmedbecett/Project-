@@ -244,8 +244,73 @@ class FirestoreSyncManager(private val context: Context) {
         }
     }
 
+    private var usersListener: ListenerRegistration? = null
+
+    fun startListeningToRegisteredUsers(onUsersUpdated: (List<RegisteredUser>) -> Unit) {
+        usersListener?.remove()
+        try {
+            val db = firestore ?: return
+            usersListener = db.collection("users")
+                .addSnapshotListener { snapshot, error ->
+                    if (error != null) {
+                        Log.w(tag, "Error listening to users collection: ${error.message}")
+                        return@addSnapshotListener
+                    }
+                    if (snapshot != null) {
+                        val list = mutableListOf<RegisteredUser>()
+                        for (doc in snapshot.documents) {
+                            try {
+                                val id = doc.getString("userId") ?: doc.id
+                                val name = doc.getString("userName") ?: ""
+                                val email = doc.getString("email") ?: ""
+                                val levelStr = doc.getString("currentLevel") ?: "A1"
+                                val level = try { CefrLevel.valueOf(levelStr) } catch (e: Exception) {
+                                    CefrLevel.values().find { it.code.equals(levelStr, ignoreCase = true) } ?: CefrLevel.A1
+                                }
+                                val isPrem = doc.getBoolean("isPremium") ?: false
+                                val xp = doc.getLong("totalXp")?.toInt() ?: 0
+                                val regDate = doc.getString("lastActiveFormatted")?.take(10)
+                                    ?: SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
+                                val expiry = if (isPrem) "Active VIP" else "Free Tier"
+                                if (name.isNotBlank() || email.isNotBlank()) {
+                                    list.add(
+                                        RegisteredUser(
+                                            id = id,
+                                            name = name.ifBlank { email.substringBefore("@") },
+                                            emailOrPhone = email.ifBlank { id },
+                                            registrationDate = regDate,
+                                            currentLevel = level,
+                                            isPremium = isPrem,
+                                            premiumExpiryDate = expiry,
+                                            totalXp = xp
+                                        )
+                                    )
+                                }
+                            } catch (e: Exception) {
+                                Log.e(tag, "Error parsing user doc ${doc.id}: ${e.message}")
+                            }
+                        }
+                        onUsersUpdated(list)
+                    }
+                }
+        } catch (e: Exception) {
+            Log.e(tag, "Failed to listen to users: ${e.message}", e)
+        }
+    }
+
+    fun deleteUser(userId: String) {
+        scope.launch {
+            try {
+                firestore?.collection("users")?.document(userId)?.delete()?.await()
+            } catch (e: Exception) {
+                Log.e(tag, "Failed to delete user $userId from firestore: ${e.message}")
+            }
+        }
+    }
+
     fun cleanup() {
         userDocListener?.remove()
         paymentsListener?.remove()
+        usersListener?.remove()
     }
 }

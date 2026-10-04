@@ -123,6 +123,13 @@ class LinguaQuestViewModel(application: Application) : AndroidViewModel(applicat
                             repository.completeLesson(lessonId, 0)
                         }
                     }
+                    repository.registerOrUpdateUser(
+                        userId = user.uid,
+                        name = user.displayName,
+                        contact = user.email,
+                        isVip = repository.isPremium.value,
+                        xp = repository.totalXp.value
+                    )
                     syncToCloudNow()
                 } else {
                     firestoreSyncManager.stopListeningToUser()
@@ -130,21 +137,14 @@ class LinguaQuestViewModel(application: Application) : AndroidViewModel(applicat
             }
         }
 
+        // Listen to registered users updates from cloud Firestore
+        firestoreSyncManager.startListeningToRegisteredUsers { remoteUsers ->
+            repository.setRegisteredUsersFromCloud(remoteUsers)
+        }
+
         // Listen to payment updates from cloud
         firestoreSyncManager.startListeningToPayments { remoteList ->
-            for (p in remoteList) {
-                val exists = repository.paymentRequests.value.any { it.id == p.id }
-                if (!exists) {
-                    repository.submitPayment(
-                        userName = p.userName,
-                        userContact = p.userContact,
-                        plan = p.plan,
-                        method = p.method,
-                        transactionRef = p.transactionRef,
-                        receiptNotes = p.receiptNotes
-                    )
-                }
-            }
+            repository.setPaymentRequestsFromCloud(remoteList)
         }
     }
 
@@ -385,6 +385,15 @@ class LinguaQuestViewModel(application: Application) : AndroidViewModel(applicat
 
     fun manualAddUser(name: String, contact: String, level: CefrLevel, isVip: Boolean) {
         repository.manualAddUser(name, contact, level, isVip)
+    }
+
+    fun deleteUser(userId: String) {
+        repository.deleteUser(userId)
+        firestoreSyncManager.deleteUser(userId)
+    }
+
+    fun getLeaderboard(currentUserId: String? = null): List<LeaderboardUser> {
+        return repository.getLeaderboard(currentUserId)
     }
 
     fun upgradeToPremium() {

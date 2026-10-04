@@ -11,7 +11,7 @@ import org.json.JSONObject
 import java.text.SimpleDateFormat
 import java.util.*
 
-class LinguaQuestRepository(private val context: Context) {
+class LinguaQuestRepository(context: Context) {
 
     private val prefs: SharedPreferences =
         context.getSharedPreferences("linguaquest_user_prefs", Context.MODE_PRIVATE)
@@ -31,20 +31,21 @@ class LinguaQuestRepository(private val context: Context) {
     )
     val currentLevel: StateFlow<CefrLevel> = _currentLevel.asStateFlow()
 
-    private val _totalXp = MutableStateFlow(prefs.getInt("total_xp", 120))
+    // Real learner progress: Starts at 0 for real genuine users
+    private val _totalXp = MutableStateFlow(prefs.getInt("total_xp", 0))
     val totalXp: StateFlow<Int> = _totalXp.asStateFlow()
 
-    private val _dailyXp = MutableStateFlow(prefs.getInt("daily_xp", 35))
+    private val _dailyXp = MutableStateFlow(prefs.getInt("daily_xp", 0))
     val dailyXp: StateFlow<Int> = _dailyXp.asStateFlow()
 
     private val _dailyGoalXp = MutableStateFlow(prefs.getInt("daily_goal_xp", 50))
     val dailyGoalXp: StateFlow<Int> = _dailyGoalXp.asStateFlow()
 
-    private val _streakDays = MutableStateFlow(prefs.getInt("streak_days", 4))
+    private val _streakDays = MutableStateFlow(prefs.getInt("streak_days", 0))
     val streakDays: StateFlow<Int> = _streakDays.asStateFlow()
 
     private val _completedLessons = MutableStateFlow(
-        prefs.getStringSet("completed_lessons", setOf("es_a1_1")) ?: setOf("es_a1_1")
+        prefs.getStringSet("completed_lessons", emptySet()) ?: emptySet()
     )
     val completedLessons: StateFlow<Set<String>> = _completedLessons.asStateFlow()
 
@@ -54,21 +55,22 @@ class LinguaQuestRepository(private val context: Context) {
     private val _speechSpeed = MutableStateFlow(prefs.getFloat("speech_speed", 1.0f))
     val speechSpeed: StateFlow<Float> = _speechSpeed.asStateFlow()
 
+    // Real earned certificates only (empty if user has not passed an exam yet)
     private val _userCertificates = MutableStateFlow<List<Certificate>>(loadCertificates())
     val userCertificates: StateFlow<List<Certificate>> = _userCertificates.asStateFlow()
 
-    private val _savedVocabulary = MutableStateFlow<List<VocabularyWord>>(CourseData.sampleVocabulary)
+    private val _savedVocabulary = MutableStateFlow<List<VocabularyWord>>(loadSavedVocabulary())
     val savedVocabulary: StateFlow<List<VocabularyWord>> = _savedVocabulary.asStateFlow()
 
-    // --- Real Monetization & Admin Ledger State ---
-
+    // Real Monetization & Admin Ledger State (Strictly real transactions only)
     private val _paymentRequests = MutableStateFlow<List<PaymentRequest>>(loadPaymentRequests())
     val paymentRequests: StateFlow<List<PaymentRequest>> = _paymentRequests.asStateFlow()
 
+    // Real Registered Users only (Strictly real accounts created in the app or synced from database)
     private val _registeredUsers = MutableStateFlow<List<RegisteredUser>>(loadRegisteredUsers())
     val registeredUsers: StateFlow<List<RegisteredUser>> = _registeredUsers.asStateFlow()
 
-    // Revenue calculations (live computed from approved payments)
+    // Revenue calculations (live computed strictly from approved real payments)
     private val _dailyRevenueDzd = MutableStateFlow(0)
     val dailyRevenueDzd: StateFlow<Int> = _dailyRevenueDzd.asStateFlow()
 
@@ -102,6 +104,40 @@ class LinguaQuestRepository(private val context: Context) {
     val aiMessages: StateFlow<List<AiChatMessage>> = _aiMessages.asStateFlow()
 
     init {
+        // Sanitize and purge any old legacy seed/mock data from SharedPreferences
+        val storedUsers = prefs.getString("persisted_users", null)
+        if (storedUsers != null && (storedUsers.contains("pay_seed") || storedUsers.contains("Karim Benali") || storedUsers.contains("Sofia Martinez") || storedUsers.contains("Yacine Belkacem"))) {
+            prefs.edit().remove("persisted_users").apply()
+            _registeredUsers.value = emptyList()
+        }
+
+        val storedPayments = prefs.getString("persisted_payments", null)
+        if (storedPayments != null && storedPayments.contains("pay_seed")) {
+            prefs.edit().remove("persisted_payments").apply()
+            _paymentRequests.value = emptyList()
+        }
+
+        val storedCerts = prefs.getStringSet("saved_certs", null)
+        if (storedCerts != null && storedCerts.any { it.contains("cert_a1_demo") }) {
+            val sanitized = storedCerts.filterNot { it.contains("cert_a1_demo") }.toSet()
+            prefs.edit().putStringSet("saved_certs", sanitized).apply()
+            _userCertificates.value = sanitized.mapNotNull { parseCertificate(it) }
+        }
+
+        // Sanitize legacy default values if present
+        if (prefs.getInt("total_xp", -1) == 120 && prefs.getInt("daily_xp", -1) == 35) {
+            prefs.edit()
+                .putInt("total_xp", 0)
+                .putInt("daily_xp", 0)
+                .putInt("streak_days", 0)
+                .remove("completed_lessons")
+                .apply()
+            _totalXp.value = 0
+            _dailyXp.value = 0
+            _streakDays.value = 0
+            _completedLessons.value = emptySet()
+        }
+
         recalculateLedger()
     }
 
@@ -136,7 +172,9 @@ class LinguaQuestRepository(private val context: Context) {
         updated.add(lessonId)
         _completedLessons.value = updated
         prefs.edit().putStringSet("completed_lessons", updated).apply()
-        addXp(xpReward)
+        if (xpReward > 0) {
+            addXp(xpReward)
+        }
     }
 
     fun setPremium(premium: Boolean) {
@@ -162,37 +200,33 @@ class LinguaQuestRepository(private val context: Context) {
         prefs.edit().putStringSet("saved_certs", encoded.toSet()).apply()
     }
 
-    private fun loadCertificates(): List<Certificate> {
-        val set = prefs.getStringSet("saved_certs", null) ?: return listOf(
+    private fun parseCertificate(encoded: String): Certificate? {
+        val parts = encoded.split("::")
+        return if (parts.size >= 7) {
             Certificate(
-                id = "cert_a1_demo",
-                studentName = "Ahmed Becetti",
-                languageName = "Spanish",
-                level = CefrLevel.A1,
-                scorePercentage = 95,
-                issueDate = SimpleDateFormat("MMM dd, yyyy", Locale.getDefault()).format(Date()),
-                verificationCode = "LQ-ES-A1-94827"
+                id = parts[0],
+                studentName = parts[1],
+                languageName = parts[2],
+                level = try { CefrLevel.valueOf(parts[3]) } catch (e: Exception) { CefrLevel.A1 },
+                scorePercentage = parts[4].toIntOrNull() ?: 70,
+                issueDate = parts[5],
+                verificationCode = parts[6]
             )
-        )
-        return set.mapNotNull {
-            val parts = it.split("::")
-            if (parts.size >= 7) {
-                Certificate(
-                    id = parts[0],
-                    studentName = parts[1],
-                    languageName = parts[2],
-                    level = CefrLevel.valueOf(parts[3]),
-                    scorePercentage = parts[4].toIntOrNull() ?: 90,
-                    issueDate = parts[5],
-                    verificationCode = parts[6]
-                )
-            } else null
-        }
+        } else null
+    }
+
+    private fun loadCertificates(): List<Certificate> {
+        val set = prefs.getStringSet("saved_certs", null) ?: return emptyList()
+        return set.mapNotNull { parseCertificate(it) }
+    }
+
+    private fun loadSavedVocabulary(): List<VocabularyWord> {
+        return CourseData.sampleVocabulary
     }
 
     fun toggleMasteredWord(wordId: String) {
         _savedVocabulary.value = _savedVocabulary.value.map {
-            if (it.id == wordId) it.copy(mastered = !it.mastered, needsReview = false) else it
+            if (it.id == wordId) it.copy(mastered = !it.mastered) else it
         }
     }
 
@@ -213,30 +247,36 @@ class LinguaQuestRepository(private val context: Context) {
         receiptNotes: String
     ): PaymentRequest {
         val request = PaymentRequest(
-            id = "pay_${System.currentTimeMillis()}",
-            userName = userName.ifBlank { "User ${System.currentTimeMillis() % 1000}" },
-            userContact = userContact,
+            id = "pay_${System.currentTimeMillis()}_${(100..999).random()}",
+            userName = userName.trim(),
+            userContact = userContact.trim(),
             plan = plan,
             method = method,
             amountDzd = plan.priceDzd,
             amountUsdt = plan.priceUsdt,
-            transactionRef = transactionRef,
-            receiptNotes = receiptNotes,
+            transactionRef = transactionRef.trim(),
+            receiptNotes = receiptNotes.trim(),
             timestamp = System.currentTimeMillis(),
             status = PaymentStatus.PENDING
         )
 
         val updated = _paymentRequests.value.toMutableList()
+        updated.removeAll { it.id == request.id }
         updated.add(0, request)
         _paymentRequests.value = updated
         persistPaymentRequests(updated)
 
-        // Ensure user is in registered list
-        registerOrUpdateUser(request.userName, request.userContact, request.plan.titleEn)
+        // Ensure user is registered in the database list
+        registerOrUpdateUser(
+            userId = "usr_${System.currentTimeMillis()}",
+            name = request.userName,
+            contact = request.userContact,
+            isVip = false
+        )
         return request
     }
 
-    // --- Admin Operations: Approve / Reject / Manual Activation ---
+    // --- Admin Operations: Approve / Reject / Manual Activation / Delete User ---
 
     fun approvePayment(requestId: String) {
         val updated = _paymentRequests.value.map { req ->
@@ -254,7 +294,7 @@ class LinguaQuestRepository(private val context: Context) {
         val targetReq = updated.firstOrNull { it.id == requestId }
         targetReq?.let { r ->
             _registeredUsers.value = _registeredUsers.value.map { u ->
-                if (u.name == r.userName || u.emailOrPhone == r.userContact) {
+                if (u.name.equals(r.userName, ignoreCase = true) || u.emailOrPhone.equals(r.userContact, ignoreCase = true)) {
                     u.copy(isPremium = true, premiumExpiryDate = "Active: ${r.plan.titleEn}")
                 } else u
             }
@@ -275,43 +315,85 @@ class LinguaQuestRepository(private val context: Context) {
         recalculateLedger()
     }
 
+    fun deleteUser(userId: String) {
+        val updated = _registeredUsers.value.filterNot { it.id == userId }
+        _registeredUsers.value = updated
+        persistRegisteredUsers(updated)
+    }
+
     fun manualAddUser(name: String, contact: String, level: CefrLevel, isVip: Boolean) {
         val newUser = RegisteredUser(
-            id = "usr_${System.currentTimeMillis()}",
-            name = name,
-            emailOrPhone = contact,
+            id = "usr_${System.currentTimeMillis()}_${(100..999).random()}",
+            name = name.trim(),
+            emailOrPhone = contact.trim(),
             registrationDate = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date()),
             currentLevel = level,
             isPremium = isVip,
-            premiumExpiryDate = if (isVip) "Active VIP (Manual Admin)" else "Free Tier",
-            totalXp = 50
+            premiumExpiryDate = if (isVip) "Active VIP (Manual)" else "Free Tier",
+            totalXp = 0
         )
-        val list = _registeredUsers.value.toMutableList()
-        list.add(0, newUser)
-        _registeredUsers.value = list
-        persistRegisteredUsers(list)
+        val updated = _registeredUsers.value.toMutableList()
+        updated.removeAll { it.emailOrPhone.equals(contact.trim(), ignoreCase = true) }
+        updated.add(0, newUser)
+        _registeredUsers.value = updated
+        persistRegisteredUsers(updated)
     }
 
-    private fun registerOrUpdateUser(name: String, contact: String, planName: String) {
-        val exists = _registeredUsers.value.any { it.name == name || it.emailOrPhone == contact }
-        if (!exists) {
-            val newUser = RegisteredUser(
-                id = "usr_${System.currentTimeMillis()}",
-                name = name,
+    fun registerOrUpdateUser(
+        userId: String = "usr_${System.currentTimeMillis()}",
+        name: String,
+        contact: String,
+        isVip: Boolean = false,
+        xp: Int = 0
+    ) {
+        if (name.isBlank() && contact.isBlank()) return
+        val currentList = _registeredUsers.value.toMutableList()
+        val existingIndex = currentList.indexOfFirst {
+            it.id == userId || (it.emailOrPhone.isNotBlank() && it.emailOrPhone.equals(contact, ignoreCase = true))
+        }
+
+        val updatedUser = if (existingIndex >= 0) {
+            val existing = currentList[existingIndex]
+            existing.copy(
+                name = name.ifBlank { existing.name },
+                emailOrPhone = contact.ifBlank { existing.emailOrPhone },
+                isPremium = isVip || existing.isPremium,
+                totalXp = maxOf(existing.totalXp, xp)
+            )
+        } else {
+            RegisteredUser(
+                id = userId,
+                name = name.ifBlank { contact.substringBefore("@") },
                 emailOrPhone = contact,
                 registrationDate = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date()),
                 currentLevel = _currentLevel.value,
-                isPremium = false,
-                premiumExpiryDate = "Pending: $planName",
-                totalXp = _totalXp.value
+                isPremium = isVip,
+                premiumExpiryDate = if (isVip) "Active VIP" else "Free Tier",
+                totalXp = xp
             )
-            val list = _registeredUsers.value.toMutableList()
-            list.add(0, newUser)
-            _registeredUsers.value = list
-            persistRegisteredUsers(list)
         }
+
+        if (existingIndex >= 0) {
+            currentList[existingIndex] = updatedUser
+        } else {
+            currentList.add(0, updatedUser)
+        }
+        _registeredUsers.value = currentList
+        persistRegisteredUsers(currentList)
     }
 
+    fun setRegisteredUsersFromCloud(remoteUsers: List<RegisteredUser>) {
+        _registeredUsers.value = remoteUsers
+        persistRegisteredUsers(remoteUsers)
+    }
+
+    fun setPaymentRequestsFromCloud(remotePayments: List<PaymentRequest>) {
+        _paymentRequests.value = remotePayments
+        persistPaymentRequests(remotePayments)
+        recalculateLedger()
+    }
+
+    // Live financial recalculation: strictly calculated from actual approved payments
     private fun recalculateLedger() {
         val now = System.currentTimeMillis()
         val oneDayMillis = 24 * 60 * 60 * 1000L
@@ -324,7 +406,9 @@ class LinguaQuestRepository(private val context: Context) {
         var totalDzd = 0
         var totalUsdt = 0.0
 
-        _paymentRequests.value.filter { it.status == PaymentStatus.APPROVED }.forEach { req ->
+        for (req in _paymentRequests.value) {
+            if (req.status != PaymentStatus.APPROVED) continue
+
             totalDzd += req.amountDzd
             totalUsdt += req.amountUsdt
 
@@ -369,47 +453,7 @@ class LinguaQuestRepository(private val context: Context) {
     }
 
     private fun loadPaymentRequests(): List<PaymentRequest> {
-        val raw = prefs.getString("persisted_payments", null) ?: return listOf(
-            PaymentRequest(
-                id = "pay_seed_1",
-                userName = "Karim Benali",
-                userContact = "0550123456",
-                plan = SubscriptionPlan.YEARLY_VIP,
-                method = PaymentMethod.BARIDIMOB,
-                amountDzd = 7500,
-                amountUsdt = 39.0,
-                transactionRef = "CCP-TRF-984210",
-                receiptNotes = "تم التحويل بنجاح عبر بريدي موب إلى حساب 002440629137",
-                timestamp = System.currentTimeMillis() - (12 * 3600 * 1000L),
-                status = PaymentStatus.APPROVED
-            ),
-            PaymentRequest(
-                id = "pay_seed_2",
-                userName = "Sofia Martinez",
-                userContact = "sofia.m@gmail.com",
-                plan = SubscriptionPlan.MONTHLY_3,
-                method = PaymentMethod.BINANCE_PAY,
-                amountDzd = 3600,
-                amountUsdt = 19.0,
-                transactionRef = "0x789ab...cde34",
-                receiptNotes = "BNB Smart Chain BEP20 USDT transfer",
-                timestamp = System.currentTimeMillis() - (3 * 3600 * 1000L),
-                status = PaymentStatus.APPROVED
-            ),
-            PaymentRequest(
-                id = "pay_seed_3",
-                userName = "Yacine Belkacem",
-                userContact = "yacine@yahoo.com",
-                plan = SubscriptionPlan.MONTHLY_1,
-                method = PaymentMethod.BARIDIMOB,
-                amountDzd = 1500,
-                amountUsdt = 8.0,
-                transactionRef = "BM-2026-09412",
-                receiptNotes = "تحويل 1500 دج لحساب أحمد بصيتي 002440629137",
-                timestamp = System.currentTimeMillis() - (45 * 60 * 1000L),
-                status = PaymentStatus.PENDING
-            )
-        )
+        val raw = prefs.getString("persisted_payments", null) ?: return emptyList()
 
         return try {
             val jsonArray = JSONArray(raw)
@@ -457,13 +501,7 @@ class LinguaQuestRepository(private val context: Context) {
     }
 
     private fun loadRegisteredUsers(): List<RegisteredUser> {
-        val raw = prefs.getString("persisted_users", null) ?: return listOf(
-            RegisteredUser("u1", "Ahmed Becetti (Admin)", "ahmedbecetti41@gmail.com", "2026-01-10", CefrLevel.C2, true, "Lifetime Owner", 1450),
-            RegisteredUser("u2", "Karim Benali", "0550123456", "2026-09-15", CefrLevel.B2, true, "Active: 1 Year VIP", 920),
-            RegisteredUser("u3", "Sofia Martinez", "sofia.m@gmail.com", "2026-09-28", CefrLevel.B1, true, "Active: 3 Months", 480),
-            RegisteredUser("u4", "Yacine Belkacem", "yacine@yahoo.com", "2026-10-02", CefrLevel.A1, false, "Pending: 1 Month", 110),
-            RegisteredUser("u5", "Amine Dahmani", "0770987654", "2026-10-01", CefrLevel.A1, false, "Free Tier", 60)
-        )
+        val raw = prefs.getString("persisted_users", null) ?: return emptyList()
 
         return try {
             val jsonArray = JSONArray(raw)
@@ -476,7 +514,7 @@ class LinguaQuestRepository(private val context: Context) {
                         name = obj.getString("name"),
                         emailOrPhone = obj.getString("emailOrPhone"),
                         registrationDate = obj.getString("registrationDate"),
-                        currentLevel = CefrLevel.valueOf(obj.getString("currentLevel")),
+                        currentLevel = try { CefrLevel.valueOf(obj.getString("currentLevel")) } catch (e: Exception) { CefrLevel.A1 },
                         isPremium = obj.getBoolean("isPremium"),
                         premiumExpiryDate = obj.getString("premiumExpiryDate"),
                         totalXp = obj.getInt("totalXp")
@@ -512,19 +550,35 @@ class LinguaQuestRepository(private val context: Context) {
             Achievement("ach_3", "Streak Flame", "Maintain a 7-day study streak", "🔥", minOf(streak, 7), 7, streak >= 7, 150),
             Achievement("ach_4", "Certified Scholar", "Earn an official LinguaQuest Certificate", "📜", minOf(certsCount, 1), 1, certsCount >= 1, 200),
             Achievement("ach_5", "XP Master 500", "Accumulate over 500 Total XP", "⚡", minOf(xp, 500), 500, xp >= 500, 250),
-            Achievement("ach_6", "Fluent Speaker", "Practice 5 real-life conversation situations", "🗣️", 3, 5, false, 120)
+            Achievement("ach_6", "Fluent Speaker", "Practice 5 real-life conversation situations", "🗣️", 0, 5, false, 120)
         )
     }
 
-    fun getLeaderboard(): List<LeaderboardUser> {
-        val currentXp = _totalXp.value
-        return listOf(
-            LeaderboardUser(1, "Elena Rostova", "🇪🇸", 1420, "E"),
-            LeaderboardUser(2, "Ahmed Becetti", "🇩🇿", maxOf(currentXp, 980), "A", isCurrentUser = true),
-            LeaderboardUser(3, "Kenji Tanaka", "🇯🇵", 920, "K"),
-            LeaderboardUser(4, "Camille Laurent", "🇫🇷", 840, "C"),
-            LeaderboardUser(5, "Mateo Silva", "🇧🇷", 710, "M"),
-            LeaderboardUser(6, "Fatima Zahra", "🇸🇦", 650, "F")
-        )
+    // Leaderboard strictly derived from genuine registered learners only! No mock profiles!
+    fun getLeaderboard(currentUserId: String? = null): List<LeaderboardUser> {
+        val flag = _selectedLanguage.value.flagEmoji
+
+        // Take only genuinely registered users from database
+        val realUsers = _registeredUsers.value.filter { it.totalXp > 0 || it.name.isNotBlank() }
+
+        if (realUsers.isEmpty()) {
+            return emptyList()
+        }
+
+        val mapped = realUsers.map { u ->
+            LeaderboardUser(
+                rank = 0,
+                name = u.name,
+                countryFlag = flag,
+                xp = u.totalXp,
+                avatarInitial = u.name.take(1).ifBlank { "U" }.uppercase(),
+                isCurrentUser = (currentUserId != null && u.id == currentUserId)
+            )
+        }.toMutableList()
+
+        mapped.sortByDescending { it.xp }
+        return mapped.mapIndexed { index, user ->
+            user.copy(rank = index + 1)
+        }
     }
 }

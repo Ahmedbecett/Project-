@@ -50,6 +50,7 @@ fun AdminDashboardScreen(
     onApprovePayment: (String) -> Unit,
     onRejectPayment: (String) -> Unit,
     onManualAddUser: (String, String, CefrLevel, Boolean) -> Unit,
+    onDeleteUser: (String) -> Unit = {},
     onBack: () -> Unit
 ) {
     val context = LocalContext.current
@@ -563,57 +564,103 @@ fun AdminDashboardScreen(
                     }
                 }
 
-                items(registeredUsers) { u ->
-                    Card(
-                        shape = RoundedCornerShape(14.dp),
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(14.dp),
-                            verticalAlignment = Alignment.CenterVertically
+                if (registeredUsers.isEmpty()) {
+                    item {
+                        Card(
+                            shape = RoundedCornerShape(16.dp),
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 14.dp)
                         ) {
-                            Surface(
-                                shape = CircleShape,
-                                color = if (u.isPremium) GoldYellow.copy(alpha = 0.2f) else MaterialTheme.colorScheme.surfaceVariant,
-                                modifier = Modifier.size(40.dp)
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(24.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally
                             ) {
-                                Box(contentAlignment = Alignment.Center) {
-                                    Text(
-                                        text = if (u.isPremium) "👑" else "👤",
-                                        fontSize = 18.sp
-                                    )
-                                }
+                                Text(text = "👥", fontSize = 36.sp)
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Text(
+                                    text = "لا يوجد مستخدمون حالياً",
+                                    fontWeight = FontWeight.Bold,
+                                    style = MaterialTheme.typography.titleSmall
+                                )
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    text = "تعتمد القائمة حصرياً على الحسابات الحقيقية المسجلة في قاعدة البيانات. بمجرد قيام أي مستخدم بإنشاء حساب وتسجيل الدخول، سيظهر هنا فوراً وبشكل حي.",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    textAlign = TextAlign.Center
+                                )
                             }
-                            Spacer(modifier = Modifier.width(12.dp))
-                            Column(modifier = Modifier.weight(1f)) {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Text(text = u.name, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyMedium)
-                                    Spacer(modifier = Modifier.width(6.dp))
-                                    Surface(
-                                        shape = RoundedCornerShape(6.dp),
-                                        color = if (u.isPremium) GoldYellow else MaterialTheme.colorScheme.surfaceVariant
-                                    ) {
+                        }
+                    }
+                } else {
+                    items(registeredUsers) { u ->
+                        Card(
+                            shape = RoundedCornerShape(14.dp),
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                            elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(14.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Surface(
+                                    shape = CircleShape,
+                                    color = if (u.isPremium) GoldYellow.copy(alpha = 0.2f) else MaterialTheme.colorScheme.surfaceVariant,
+                                    modifier = Modifier.size(40.dp)
+                                ) {
+                                    Box(contentAlignment = Alignment.Center) {
                                         Text(
-                                            text = if (u.isPremium) "VIP" else "FREE",
-                                            fontSize = 9.sp,
-                                            fontWeight = FontWeight.Black,
-                                            color = if (u.isPremium) Color.Black else MaterialTheme.colorScheme.onSurfaceVariant,
-                                            modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp)
+                                            text = if (u.isPremium) "👑" else "👤",
+                                            fontSize = 18.sp
                                         )
                                     }
                                 }
-                                Text(
-                                    text = "${u.emailOrPhone} • مستوى ${u.currentLevel.code}",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                                Text(
-                                    text = "الحالة: ${u.premiumExpiryDate} • ${u.totalXp} XP",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.primary
-                                )
+                                Spacer(modifier = Modifier.width(12.dp))
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Text(text = u.name, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyMedium)
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        Surface(
+                                            shape = RoundedCornerShape(6.dp),
+                                            color = if (u.isPremium) GoldYellow else MaterialTheme.colorScheme.surfaceVariant
+                                        ) {
+                                            Text(
+                                                text = if (u.isPremium) "VIP" else "FREE",
+                                                fontSize = 9.sp,
+                                                fontWeight = FontWeight.Black,
+                                                color = if (u.isPremium) Color.Black else MaterialTheme.colorScheme.onSurfaceVariant,
+                                                modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp)
+                                            )
+                                        }
+                                    }
+                                    Text(
+                                        text = "${u.emailOrPhone} • مستوى ${u.currentLevel.code}",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                    Text(
+                                        text = "الحالة: ${u.premiumExpiryDate} • ${u.totalXp} XP",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+                                }
+                                IconButton(
+                                    onClick = {
+                                        onDeleteUser(u.id)
+                                        Toast.makeText(context, "تم حذف المستخدم: ${u.name}", Toast.LENGTH_SHORT).show()
+                                    }
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.DeleteOutline,
+                                        contentDescription = "حذف المستخدم",
+                                        tint = ErrorRed
+                                    )
+                                }
                             }
                         }
                     }

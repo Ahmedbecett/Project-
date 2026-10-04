@@ -20,6 +20,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.model.Achievement
@@ -777,43 +778,79 @@ fun ProfileDashboardScreen(
             )
         }
 
-        items(leaderboard) { user ->
-            Card(
-                shape = RoundedCornerShape(14.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = if (user.isCurrentUser) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface
-                ),
-                elevation = CardDefaults.cardElevation(defaultElevation = if (user.isCurrentUser) 3.dp else 1.dp),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 3.dp)
-            ) {
-                Row(
-                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
-                    verticalAlignment = Alignment.CenterVertically
+        if (leaderboard.isEmpty()) {
+            item {
+                Card(
+                    shape = RoundedCornerShape(14.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                    ),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 4.dp)
                 ) {
-                    Text(
-                        text = "#${user.rank}",
-                        fontWeight = FontWeight.Black,
-                        fontSize = 14.sp,
-                        color = if (user.rank <= 3) GoldYellow else MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Spacer(modifier = Modifier.width(14.dp))
-                    Text(text = user.countryFlag, fontSize = 20.sp)
-                    Spacer(modifier = Modifier.width(10.dp))
-                    Column(modifier = Modifier.weight(1f)) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(20.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text(text = "🏆", fontSize = 28.sp)
+                        Spacer(modifier = Modifier.height(6.dp))
                         Text(
-                            text = if (user.isCurrentUser) "${user.name} (You)" else user.name,
-                            fontWeight = if (user.isCurrentUser) FontWeight.Black else FontWeight.SemiBold,
+                            text = "لا يوجد متعلمون مسجلون حالياً",
+                            fontWeight = FontWeight.Bold,
                             style = MaterialTheme.typography.bodyMedium
                         )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "سجّل دخولك بحسابك الحقيقي وابدأ بالتعلم والدروس لتسجيل أول نقاط XP وتصدّر قائمة المتصدرين الحقيقية.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            textAlign = TextAlign.Center
+                        )
                     }
-                    Text(
-                        text = "${user.xp} XP",
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 13.sp,
-                        color = GoldYellow
-                    )
+                }
+            }
+        } else {
+            items(leaderboard) { user ->
+                Card(
+                    shape = RoundedCornerShape(14.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = if (user.isCurrentUser) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface
+                    ),
+                    elevation = CardDefaults.cardElevation(defaultElevation = if (user.isCurrentUser) 3.dp else 1.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 3.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "#${user.rank}",
+                            fontWeight = FontWeight.Black,
+                            fontSize = 14.sp,
+                            color = if (user.rank <= 3) GoldYellow else MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Spacer(modifier = Modifier.width(14.dp))
+                        Text(text = user.countryFlag, fontSize = 20.sp)
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = if (user.isCurrentUser) "${user.name} (You)" else user.name,
+                                fontWeight = if (user.isCurrentUser) FontWeight.Black else FontWeight.SemiBold,
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                        }
+                        Text(
+                            text = "${user.xp} XP",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 13.sp,
+                            color = GoldYellow
+                        )
+                    }
                 }
             }
         }

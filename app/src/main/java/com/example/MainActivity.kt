@@ -187,7 +187,7 @@ class MainActivity : ComponentActivity() {
                                     isDarkMode = isDarkModeUser,
                                     speechSpeed = speechSpeed,
                                     achievements = viewModel.repository.getAchievements(),
-                                    leaderboard = viewModel.repository.getLeaderboard(),
+                                    leaderboard = viewModel.getLeaderboard(currentUser?.uid),
                                     currentUser = currentUser,
                                     isAuthLoading = isAuthLoading,
                                     authError = authError,
@@ -320,6 +320,9 @@ class MainActivity : ComponentActivity() {
                                     onRejectPayment = { reqId -> viewModel.rejectPayment(reqId) },
                                     onManualAddUser = { name, contact, level, isVip ->
                                         viewModel.manualAddUser(name, contact, level, isVip)
+                                    },
+                                    onDeleteUser = { userId ->
+                                        viewModel.deleteUser(userId)
                                     },
                                     onBack = { viewModel.navigateBack() }
                                 )

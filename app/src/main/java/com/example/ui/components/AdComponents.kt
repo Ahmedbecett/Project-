@@ -1,18 +1,17 @@
 package com.example.ui.components
 
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
@@ -21,6 +20,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import com.example.ui.theme.GoldYellow
+import com.example.ui.theme.IndigoPrimary
 import kotlinx.coroutines.delay
 
 @Composable
@@ -29,57 +29,57 @@ fun SponsoredAdBanner(
     onUpgradeClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    if (isPremium) return // 100% ad-free for VIP subscribers
+    if (isPremium) return
 
     Card(
-        shape = RoundedCornerShape(14.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f)),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
         modifier = modifier
             .fillMaxWidth()
             .clickable { onUpgradeClick() }
-            .testTag("ad_banner_container")
+            .testTag("sponsored_ad_banner")
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 14.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            Surface(
-                shape = RoundedCornerShape(4.dp),
-                color = Color(0xFFF1B722)
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.weight(1f)
             ) {
-                Text(
-                    text = "Ad • إعلان",
-                    fontSize = 9.sp,
-                    fontWeight = FontWeight.Black,
-                    color = Color.Black,
-                    modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp)
-                )
+                Surface(
+                    shape = RoundedCornerShape(6.dp),
+                    color = GoldYellow
+                ) {
+                    Text(
+                        text = "إعلان • Ad",
+                        fontSize = 9.sp,
+                        fontWeight = FontWeight.Black,
+                        color = Color.Black,
+                        modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp)
+                    )
+                }
+                Spacer(modifier = Modifier.width(10.dp))
+                Column {
+                    Text(
+                        text = "افتح جميع المستويات A2 إلى C2 بدون إعلانات",
+                        fontWeight = FontWeight.Bold,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Text(
+                        text = "اشتراكات رمزية بالدينار الجزائري (بريدي موب) أو بينانس USDT",
+                        fontSize = 10.sp,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
             }
-
-            Spacer(modifier = Modifier.width(8.dp))
-
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = "تعلّم بدون قيود وبدون إعلانات مع باقة VIP",
-                    style = MaterialTheme.typography.bodySmall,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 12.sp,
-                    maxLines = 1
-                )
-                Text(
-                    text = "فتح جميع المستويات A2-C2 + مُعلّم الذكاء الاصطناعي",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    fontSize = 10.sp,
-                    maxLines = 1
-                )
-            }
-
-            Spacer(modifier = Modifier.width(6.dp))
 
             Surface(
-                shape = RoundedCornerShape(8.dp),
+                shape = RoundedCornerShape(10.dp),
                 color = MaterialTheme.colorScheme.primary
             ) {
                 Text(
@@ -105,7 +105,7 @@ fun InterstitialAdDialog(
         return
     }
 
-    var countdown by remember { mutableStateOf(4) }
+    var countdown by remember { mutableStateOf(3) }
 
     LaunchedEffect(Unit) {
         while (countdown > 0) {
@@ -174,7 +174,7 @@ fun InterstitialAdDialog(
                     color = MaterialTheme.colorScheme.primaryContainer,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(140.dp)
+                        .height(130.dp)
                 ) {
                     Column(
                         modifier = Modifier
@@ -183,7 +183,7 @@ fun InterstitialAdDialog(
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.Center
                     ) {
-                        Text(text = "👑", fontSize = 38.sp)
+                        Text(text = "👑", fontSize = 36.sp)
                         Spacer(modifier = Modifier.height(6.dp))
                         Text(
                             text = "LinguaQuest VIP Club",
