@@ -1,0 +1,6 @@
+{
+  "name": "LinguaQuest",
+  "description": "LinguaQuest — Speak Beyond Words. Learn, speak, and master languages from A1 to C2 with courses, conversations, exams, and smart practice.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
