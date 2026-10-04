@@ -5,12 +5,21 @@
 
 ---
 
-## 📱 Live App Demo & Direct Link / رابط التجربة والتحميل المباشر
+## 📥 Direct APK Download Links / روابط تحميل التطبيق المباشرة
 
-- 🌐 **Direct App Link (Live Web Emulator):**  
-  [https://ais-pre-cd7hhxzdntucwsvm3526nk-338881025815.europe-west2.run.app](https://ais-pre-cd7hhxzdntucwsvm3526nk-338881025815.europe-west2.run.app)
-- 🛠️ **Development URL:**  
-  [https://ais-dev-cd7hhxzdntucwsvm3526nk-338881025815.europe-west2.run.app](https://ais-dev-cd7hhxzdntucwsvm3526nk-338881025815.europe-west2.run.app)
+اختر أحد الروابط التالية لتحميل وتثبيت ملف الـ APK مباشرة على أي هاتف أندرويد:
+
+1. 🚀 **[اضغط هنا للتحميل المباشر من GitHub Releases (Direct Download APK)](https://github.com/Ahmedbecett/Project-/releases/download/v1.0.0/LinguaQuest-v1.0.0.apk)**
+2. 📦 **[رابط بديل مباشر من المستودع (Alternative Direct APK Link)](https://github.com/Ahmedbecett/Project-/raw/main/apk/LinguaQuest.apk)**
+3. 🏷️ **[صفحة الإصدارات الرسمية على GitHub (Official Releases Page)](https://github.com/Ahmedbecett/Project-/releases)**
+
+---
+
+## 📱 How to Install / طريقة التثبيت على الهاتف
+
+1. قم بتحميل ملف `LinguaQuest-v1.0.0.apk` من الرابط أعلاه.
+2. افتح الملف على هاتفك الأندرويد واضغط **Install** (إذا ظهر تنبيه الأمان، اسمح بالتثبيت من هذا المصدر *Allow from this source*).
+3. استمتع برحلة تعلم اللغات مع **LinguaQuest**!
 
 ---
 
@@ -81,29 +90,12 @@ Realistic, interactive dialogue roleplay with speech recognition & instant pronu
 
 ## 🛠️ Tech Stack
 
-- **Platform**: Android
+- **Platform**: Android (API 24+)
 - **Language**: Kotlin 100%
 - **UI Framework**: Jetpack Compose & Material Design 3 (M3)
 - **Architecture**: MVVM (Model-View-ViewModel) + StateFlow
 - **Audio & Speech**: Android `TextToSpeech` & `SpeechRecognizer`
 - **Build System**: Gradle Kotlin DSL (`build.gradle.kts`)
-
----
-
-## 🚀 How to Build & Run in Android Studio
-
-1. Clone this repository:
-   ```bash
-   git clone https://github.com/Ahmedbecett/Project-.git
-   ```
-2. Open the project folder in **Android Studio** (Koala / Ladybug or newer recommended).
-3. Allow Gradle to sync dependencies.
-4. Run the project on an emulator or physical device running Android 7.0+ (API 24+).
-5. To assemble the debug APK:
-   ```bash
-   gradle :app:assembleDebug
-   ```
-   The APK will be generated at: `app/build/outputs/apk/debug/app-debug.apk`
 
 ---
 
