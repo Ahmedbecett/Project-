@@ -1,5 +1,6 @@
 package com.example.ui.screens
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -12,7 +13,7 @@ import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.DarkMode
 import androidx.compose.material.icons.outlined.LightMode
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -25,9 +26,12 @@ import com.example.data.model.Achievement
 import com.example.data.model.CefrLevel
 import com.example.data.model.LeaderboardUser
 import com.example.data.model.SupportedLanguage
+import com.example.ui.components.AuthDialog
+import com.example.ui.components.GoogleSignInButton
 import com.example.ui.theme.GoldYellow
 import com.example.ui.theme.StreakOrange
 import com.example.ui.theme.SuccessGreen
+import com.example.util.UserAuthProfile
 
 @Composable
 fun ProfileDashboardScreen(
@@ -43,6 +47,16 @@ fun ProfileDashboardScreen(
     speechSpeed: Float,
     achievements: List<Achievement>,
     leaderboard: List<LeaderboardUser>,
+    currentUser: UserAuthProfile?,
+    isAuthLoading: Boolean,
+    authError: String?,
+    isCloudSyncing: Boolean,
+    onGoogleSignIn: () -> Unit,
+    onEmailSignIn: (String, String) -> Unit,
+    onEmailRegister: (String, String, String) -> Unit,
+    onGuestSignIn: () -> Unit,
+    onSignOut: () -> Unit,
+    onSyncNow: () -> Unit,
     onToggleDarkMode: () -> Unit,
     onSpeechSpeedChange: (Float) -> Unit,
     onNavigateToContact: () -> Unit,
@@ -51,12 +65,190 @@ fun ProfileDashboardScreen(
     onNavigateToAiTutor: () -> Unit,
     onNavigateToAdmin: () -> Unit
 ) {
+    var showAuthModal by remember { mutableStateOf(false) }
+
+    if (showAuthModal && currentUser == null) {
+        AuthDialog(
+            onDismissRequest = { showAuthModal = false },
+            onGoogleSignIn = {
+                onGoogleSignIn()
+            },
+            onEmailSignIn = { email, pass ->
+                onEmailSignIn(email, pass)
+            },
+            onEmailRegister = { name, email, pass ->
+                onEmailRegister(name, email, pass)
+            },
+            onGuestSignIn = {
+                onGuestSignIn()
+                showAuthModal = false
+            },
+            isLoading = isAuthLoading,
+            errorMessage = authError
+        )
+    }
+
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
             .testTag("profile_dashboard_list"),
         contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 90.dp)
     ) {
+        // Cloud Account & Authentication Banner
+        item {
+            if (currentUser != null) {
+                Card(
+                    shape = RoundedCornerShape(20.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 12.dp)
+                        .testTag("logged_in_user_card")
+                ) {
+                    Row(
+                        modifier = Modifier.padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Surface(
+                            shape = CircleShape,
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(46.dp)
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Text(
+                                    text = currentUser.displayName.take(2).uppercase(),
+                                    color = Color.White,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 16.sp
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.width(12.dp))
+
+                        Column(modifier = Modifier.weight(1f)) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    text = currentUser.displayName,
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                if (currentUser.isGoogleUser) {
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Surface(
+                                        shape = RoundedCornerShape(6.dp),
+                                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
+                                    ) {
+                                        Text(
+                                            text = "Google",
+                                            fontSize = 9.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = MaterialTheme.colorScheme.primary,
+                                            modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp)
+                                        )
+                                    }
+                                }
+                            }
+                            if (currentUser.email.isNotBlank()) {
+                                Text(
+                                    text = currentUser.email,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.padding(top = 2.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.CloudDone,
+                                    contentDescription = "Cloud Synced",
+                                    tint = SuccessGreen,
+                                    modifier = Modifier.size(13.dp)
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = if (isCloudSyncing) "Syncing..." else "Progress Synced to Cloud",
+                                    fontSize = 10.sp,
+                                    color = if (isCloudSyncing) MaterialTheme.colorScheme.primary else SuccessGreen,
+                                    fontWeight = FontWeight.Medium
+                                )
+                            }
+                        }
+
+                        // Sync button & Sign out
+                        IconButton(
+                            onClick = onSyncNow,
+                            modifier = Modifier.size(36.dp)
+                        ) {
+                            if (isCloudSyncing) {
+                                CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+                            } else {
+                                Icon(
+                                    imageVector = Icons.Default.Sync,
+                                    contentDescription = "Sync Now",
+                                    tint = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                        }
+
+                        IconButton(
+                            onClick = onSignOut,
+                            modifier = Modifier.size(36.dp).testTag("sign_out_button")
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Logout,
+                                contentDescription = "Sign Out",
+                                tint = MaterialTheme.colorScheme.error
+                            )
+                        }
+                    }
+                }
+            } else {
+                Card(
+                    shape = RoundedCornerShape(20.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 12.dp)
+                        .testTag("login_prompt_card")
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Default.CloudQueue,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(24.dp)
+                            )
+                            Spacer(modifier = Modifier.width(10.dp))
+                            Column {
+                                Text(
+                                    text = "حفظ وربط بياناتك السحابية (Cloud Sync)",
+                                    style = MaterialTheme.typography.titleSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                                )
+                                Text(
+                                    text = "سجل دخولك بجوجل لحفظ تقدمك، مستواك، واشتراكك عبر كل الأجهزة",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        GoogleSignInButton(
+                            onClick = { showAuthModal = true },
+                            isLoading = isAuthLoading,
+                            text = "تسجيل الدخول عبر Google أو البريد"
+                        )
+                    }
+                }
+            }
+        }
+
         // User Profile Header
         item {
             Card(
@@ -75,7 +267,7 @@ fun ProfileDashboardScreen(
                     ) {
                         Box(contentAlignment = Alignment.Center) {
                             Text(
-                                text = "LQ",
+                                text = (currentUser?.displayName ?: "LQ").take(2).uppercase(),
                                 color = Color.White,
                                 fontWeight = FontWeight.Black,
                                 fontSize = 20.sp
@@ -88,7 +280,7 @@ fun ProfileDashboardScreen(
                     Column(modifier = Modifier.weight(1f)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(
-                                text = "LinguaQuest Learner",
+                                text = currentUser?.displayName ?: "LinguaQuest Learner",
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.onPrimaryContainer
@@ -139,7 +331,7 @@ fun ProfileDashboardScreen(
                     modifier = Modifier.weight(1f),
                     emoji = "🔥",
                     value = "$streakDays Days",
-                    label = "Streak",
+                    label = "Study Streak",
                     color = StreakOrange
                 )
             }
@@ -152,30 +344,79 @@ fun ProfileDashboardScreen(
                     modifier = Modifier.weight(1f),
                     emoji = "📚",
                     value = "$completedLessonsCount",
-                    label = "Lessons Done",
+                    label = "Completed Lessons",
                     color = MaterialTheme.colorScheme.primary
                 )
                 StatCard(
                     modifier = Modifier.weight(1f),
-                    emoji = "📜",
-                    value = "$certificatesCount",
-                    label = "Certificates",
+                    emoji = "🧠",
+                    value = "$vocabularyCount",
+                    label = "Saved Words",
                     color = SuccessGreen
                 )
             }
-            Spacer(modifier = Modifier.height(20.dp))
+            Spacer(modifier = Modifier.height(16.dp))
         }
 
-        // Quick Action Tiles: Contact Developer, Subscriptions, Help
+        // Certificates summary
+        item {
+            Card(
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    modifier = Modifier.padding(18.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Surface(
+                        shape = CircleShape,
+                        color = GoldYellow.copy(alpha = 0.2f),
+                        modifier = Modifier.size(48.dp)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Text(text = "🎓", fontSize = 24.sp)
+                        }
+                    }
+                    Spacer(modifier = Modifier.width(16.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Earned CEFR Certificates",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = if (certificatesCount > 0) "$certificatesCount verified certificates unlocked" else "Pass an exam (70%+) to earn certified diplomas",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = MaterialTheme.colorScheme.primaryContainer
+                    ) {
+                        Text(
+                            text = "$certificatesCount",
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                        )
+                    }
+                }
+            }
+            Spacer(modifier = Modifier.height(16.dp))
+        }
+
+        // Learning & App Settings Section
         item {
             Text(
-                text = "Support & Actions",
+                text = "Preferences & Features",
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
-                modifier = Modifier.padding(vertical = 6.dp)
+                modifier = Modifier.padding(vertical = 8.dp)
             )
 
-            // Contact Developer Card
+            // Speech Speed Controller
             Card(
                 shape = RoundedCornerShape(16.dp),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
@@ -183,47 +424,77 @@ fun ProfileDashboardScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(vertical = 4.dp)
-                    .clickable { onNavigateToContact() }
-                    .testTag("dashboard_contact_developer_card")
             ) {
-                Row(
-                    modifier = Modifier.padding(16.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Surface(
-                        shape = CircleShape,
-                        color = MaterialTheme.colorScheme.primaryContainer,
-                        modifier = Modifier.size(40.dp)
-                    ) {
-                        Box(contentAlignment = Alignment.Center) {
-                            Icon(
-                                imageVector = Icons.Default.Email,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary
-                            )
-                        }
-                    }
-                    Spacer(modifier = Modifier.width(14.dp))
-                    Column(modifier = Modifier.weight(1f)) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(imageVector = Icons.Default.Speed, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                        Spacer(modifier = Modifier.width(12.dp))
                         Text(
-                            text = "Contact Developer (Ahmed Becetti)",
+                            text = "Audio Pronunciation Speed",
                             style = MaterialTheme.typography.titleSmall,
                             fontWeight = FontWeight.Bold
                         )
+                        Spacer(modifier = Modifier.weight(1f))
                         Text(
-                            text = "ahmedbecetti@gmail.com • Send direct feedback",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            text = "${speechSpeed}x",
+                            fontWeight = FontWeight.Black,
+                            color = MaterialTheme.colorScheme.primary
                         )
                     }
-                    Icon(imageVector = Icons.Default.ChevronRight, contentDescription = null)
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        listOf(0.75f, 1.0f, 1.25f).forEach { speed ->
+                            FilterChip(
+                                selected = speechSpeed == speed,
+                                onClick = { onSpeechSpeedChange(speed) },
+                                label = { Text(text = "${speed}x") },
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+                    }
                 }
             }
 
-            // AI Language Tutor Card
+            // Dark Mode Toggle
+            Card(
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 4.dp)
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = if (isDarkMode) Icons.Outlined.DarkMode else Icons.Outlined.LightMode,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Text(
+                        text = if (isDarkMode) "Dark Theme" else "Light Theme",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Spacer(modifier = Modifier.weight(1f))
+                    Switch(
+                        checked = isDarkMode,
+                        onCheckedChange = { onToggleDarkMode() }
+                    )
+                }
+            }
+
+            // AI Tutor Card
             Card(
                 shape = RoundedCornerShape(16.dp),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(vertical = 4.dp)
@@ -236,7 +507,7 @@ fun ProfileDashboardScreen(
                 ) {
                     Surface(
                         shape = CircleShape,
-                        color = Color(0xFF8B5CF6),
+                        color = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size(40.dp)
                     ) {
                         Box(contentAlignment = Alignment.Center) {
@@ -352,7 +623,7 @@ fun ProfileDashboardScreen(
                             fontWeight = FontWeight.Bold
                         )
                         Text(
-                            text = "متابعة المسجلين، الدخل اليومي والشهري، وقبول طلبات الدفع",
+                            text = "متابعة المسجلين، الدخل اليومي والشهري، وقبول طلبات الدفع السحابية",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -361,7 +632,43 @@ fun ProfileDashboardScreen(
                 }
             }
 
-            // Help & CEFR Guide Card
+            // Contact & Help
+            Card(
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 4.dp)
+                    .clickable { onNavigateToContact() }
+                    .testTag("dashboard_contact_card")
+            ) {
+                Row(
+                    modifier = Modifier.padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Email,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                    Spacer(modifier = Modifier.width(14.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Contact Developer (Ahmed Becetti)",
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = "ahmedbecetti@gmail.com • Direct support & inquiries",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Icon(imageVector = Icons.Default.ChevronRight, contentDescription = null)
+                }
+            }
+
             Card(
                 shape = RoundedCornerShape(16.dp),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
@@ -370,34 +677,25 @@ fun ProfileDashboardScreen(
                     .fillMaxWidth()
                     .padding(vertical = 4.dp)
                     .clickable { onNavigateToHelp() }
-                    .testTag("dashboard_help_card")
             ) {
                 Row(
                     modifier = Modifier.padding(16.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Surface(
-                        shape = CircleShape,
-                        color = MaterialTheme.colorScheme.secondaryContainer,
-                        modifier = Modifier.size(40.dp)
-                    ) {
-                        Box(contentAlignment = Alignment.Center) {
-                            Icon(
-                                imageVector = Icons.Default.HelpCenter,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.secondary
-                            )
-                        }
-                    }
+                    Icon(
+                        imageVector = Icons.Default.HelpOutline,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary
+                    )
                     Spacer(modifier = Modifier.width(14.dp))
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = "Help Center & CEFR Guidelines",
+                            text = "FAQ & Learning Guide",
                             style = MaterialTheme.typography.titleSmall,
                             fontWeight = FontWeight.Bold
                         )
                         Text(
-                            text = "Understand CEFR levels, pronunciation, exams",
+                            text = "How levels, exams & certificates work",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -405,84 +703,13 @@ fun ProfileDashboardScreen(
                     Icon(imageVector = Icons.Default.ChevronRight, contentDescription = null)
                 }
             }
-
-            Spacer(modifier = Modifier.height(20.dp))
         }
 
-        // Settings: Speech speed & Dark Mode
+        // Achievements Section
         item {
+            Spacer(modifier = Modifier.height(16.dp))
             Text(
-                text = "Preferences",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.padding(vertical = 6.dp)
-            )
-
-            Card(
-                shape = RoundedCornerShape(18.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    // Dark Mode Toggle
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(
-                                imageVector = if (isDarkMode) Icons.Outlined.DarkMode else Icons.Outlined.LightMode,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary
-                            )
-                            Spacer(modifier = Modifier.width(12.dp))
-                            Text(text = "Dark Theme", fontWeight = FontWeight.SemiBold)
-                        }
-                        Switch(
-                            checked = isDarkMode,
-                            onCheckedChange = { onToggleDarkMode() },
-                            modifier = Modifier.testTag("dark_mode_switch")
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.height(12.dp))
-                    HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
-                    Spacer(modifier = Modifier.height(12.dp))
-
-                    // Audio Speech Speed
-                    Text(
-                        text = "Native Voice Speech Speed: ${String.format("%.1f", speechSpeed)}x",
-                        fontWeight = FontWeight.SemiBold,
-                        style = MaterialTheme.typography.bodyMedium
-                    )
-                    Spacer(modifier = Modifier.height(6.dp))
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        listOf(0.8f, 1.0f, 1.2f).forEach { speed ->
-                            val isSelected = speechSpeed == speed
-                            FilterChip(
-                                selected = isSelected,
-                                onClick = { onSpeechSpeedChange(speed) },
-                                label = { Text("${speed}x") },
-                                shape = RoundedCornerShape(12.dp),
-                                modifier = Modifier.weight(1f)
-                            )
-                        }
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(20.dp))
-        }
-
-        // Achievements & Badges
-        item {
-            Text(
-                text = "Badges & Achievements",
+                text = "Milestones & Achievements",
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.padding(vertical = 6.dp)
@@ -492,8 +719,10 @@ fun ProfileDashboardScreen(
         items(achievements) { ach ->
             Card(
                 shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = if (ach.unlocked) MaterialTheme.colorScheme.surface else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                ),
+                elevation = CardDefaults.cardElevation(defaultElevation = if (ach.unlocked) 2.dp else 0.dp),
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(vertical = 4.dp)

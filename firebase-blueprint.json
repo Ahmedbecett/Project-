@@ -1,0 +1,13 @@
+{
+  "schemaVersion": "1.0",
+  "collections": [
+    {
+      "name": "users",
+      "description": "User learning progress, profile, streak, certificates, and subscription status"
+    },
+    {
+      "name": "payments",
+      "description": "BaridiMob and Binance Pay subscription verification requests"
+    }
+  ]
+}

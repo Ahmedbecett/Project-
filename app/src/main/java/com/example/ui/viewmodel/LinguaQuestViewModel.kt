@@ -5,9 +5,12 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.data.model.*
 import com.example.data.repository.CourseData
+import com.example.data.repository.FirestoreSyncManager
 import com.example.data.repository.LinguaQuestRepository
+import com.example.util.AuthManager
 import com.example.util.GeminiAiService
 import com.example.util.SpeechManager
+import com.example.util.UserAuthProfile
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -37,6 +40,8 @@ class LinguaQuestViewModel(application: Application) : AndroidViewModel(applicat
 
     val repository = LinguaQuestRepository(application)
     val speechManager = SpeechManager(application)
+    val authManager = AuthManager(application)
+    val firestoreSyncManager = FirestoreSyncManager(application)
     private val geminiAiService = GeminiAiService()
 
     private val _currentScreen = MutableStateFlow(AppScreen.WELCOME)
@@ -55,6 +60,13 @@ class LinguaQuestViewModel(application: Application) : AndroidViewModel(applicat
     val speechSpeed = repository.speechSpeed
     val userCertificates = repository.userCertificates
     val savedVocabulary = repository.savedVocabulary
+
+    // Auth & Cloud Sync State
+    val currentUser: StateFlow<UserAuthProfile?> = authManager.currentUser
+    val isAuthLoading: StateFlow<Boolean> = authManager.isLoading
+    val authError: StateFlow<String?> = authManager.authError
+    val isCloudSyncing: StateFlow<Boolean> = firestoreSyncManager.isCloudSyncing
+    val lastSyncTimestamp: StateFlow<Long?> = firestoreSyncManager.lastSyncTimestamp
 
     // Admin & Monetization State
     val paymentRequests = repository.paymentRequests
@@ -94,6 +106,95 @@ class LinguaQuestViewModel(application: Application) : AndroidViewModel(applicat
     private val _isDarkMode = MutableStateFlow(false)
     val isDarkMode: StateFlow<Boolean> = _isDarkMode.asStateFlow()
 
+    init {
+        // Observe auth user and initiate real-time Firestore sync
+        viewModelScope.launch {
+            authManager.currentUser.collect { user ->
+                if (user != null) {
+                    firestoreSyncManager.startListeningToUser(user.uid) { isPremRemote, xpRemote, lvlRemote, remoteLessons ->
+                        if (isPremRemote) {
+                            repository.setPremium(true)
+                        }
+                        if (xpRemote > repository.totalXp.value) {
+                            repository.addXp(xpRemote - repository.totalXp.value)
+                        }
+                        lvlRemote?.let { repository.selectLevel(it) }
+                        remoteLessons.forEach { lessonId ->
+                            repository.completeLesson(lessonId, 0)
+                        }
+                    }
+                    syncToCloudNow()
+                } else {
+                    firestoreSyncManager.stopListeningToUser()
+                }
+            }
+        }
+
+        // Listen to payment updates from cloud
+        firestoreSyncManager.startListeningToPayments { remoteList ->
+            for (p in remoteList) {
+                val exists = repository.paymentRequests.value.any { it.id == p.id }
+                if (!exists) {
+                    repository.submitPayment(
+                        userName = p.userName,
+                        userContact = p.userContact,
+                        plan = p.plan,
+                        method = p.method,
+                        transactionRef = p.transactionRef,
+                        receiptNotes = p.receiptNotes
+                    )
+                }
+            }
+        }
+    }
+
+    fun syncToCloudNow() {
+        val user = authManager.currentUser.value ?: return
+        firestoreSyncManager.syncUserProfile(
+            userId = user.uid,
+            userName = user.displayName,
+            email = user.email,
+            currentLanguageId = selectedLanguage.value.id,
+            currentLevel = currentLevel.value,
+            totalXp = totalXp.value,
+            streakDays = streakDays.value,
+            completedLessons = completedLessons.value,
+            isPremium = isPremium.value
+        )
+    }
+
+    fun signInWithGoogle() {
+        viewModelScope.launch {
+            authManager.signInWithGoogle()
+        }
+    }
+
+    fun signInWithEmail(email: String, pass: String) {
+        viewModelScope.launch {
+            authManager.signInWithEmail(email, pass)
+        }
+    }
+
+    fun registerWithEmail(name: String, email: String, pass: String) {
+        viewModelScope.launch {
+            authManager.registerWithEmail(name, email, pass)
+        }
+    }
+
+    fun signInAnonymously() {
+        viewModelScope.launch {
+            authManager.signInAnonymously()
+        }
+    }
+
+    fun signOut() {
+        authManager.signOut()
+    }
+
+    fun clearAuthError() {
+        authManager.clearError()
+    }
+
     fun toggleDarkMode() {
         _isDarkMode.value = !_isDarkMode.value
     }
@@ -120,6 +221,7 @@ class LinguaQuestViewModel(application: Application) : AndroidViewModel(applicat
 
     fun selectLanguage(lang: SupportedLanguage) {
         repository.selectLanguage(lang)
+        syncToCloudNow()
     }
 
     fun isLevelUnlocked(level: CefrLevel): Boolean {
@@ -128,6 +230,7 @@ class LinguaQuestViewModel(application: Application) : AndroidViewModel(applicat
 
     fun selectLevel(level: CefrLevel) {
         repository.selectLevel(level)
+        syncToCloudNow()
     }
 
     fun startLesson(lesson: Lesson) {
@@ -142,6 +245,7 @@ class LinguaQuestViewModel(application: Application) : AndroidViewModel(applicat
     fun completeCurrentLesson(xpReward: Int) {
         _activeLesson.value?.let { lesson ->
             repository.completeLesson(lesson.id, xpReward)
+            syncToCloudNow()
         }
     }
 
@@ -156,6 +260,7 @@ class LinguaQuestViewModel(application: Application) : AndroidViewModel(applicat
             repository.selectLevel(CefrLevel.A1)
         }
         repository.addXp(50)
+        syncToCloudNow()
         navigateTo(AppScreen.MAIN_LEARN)
     }
 
@@ -172,7 +277,9 @@ class LinguaQuestViewModel(application: Application) : AndroidViewModel(applicat
         if (scorePercent >= 70) {
             val cert = Certificate(
                 id = "cert_${level.name.lowercase()}_${System.currentTimeMillis()}",
-                studentName = studentName.ifBlank { "LinguaQuest Scholar" },
+                studentName = studentName.ifBlank {
+                    authManager.currentUser.value?.displayName ?: "LinguaQuest Scholar"
+                },
                 languageName = selectedLanguage.value.name,
                 level = level,
                 scorePercentage = scorePercent,
@@ -182,6 +289,7 @@ class LinguaQuestViewModel(application: Application) : AndroidViewModel(applicat
             repository.saveCertificate(cert)
             repository.addXp(100)
             _activeCertificate.value = cert
+            syncToCloudNow()
         }
     }
 
@@ -247,7 +355,9 @@ class LinguaQuestViewModel(application: Application) : AndroidViewModel(applicat
         transactionRef: String,
         receiptNotes: String
     ): PaymentRequest {
-        return repository.submitPayment(userName, userContact, plan, method, transactionRef, receiptNotes)
+        val req = repository.submitPayment(userName, userContact, plan, method, transactionRef, receiptNotes)
+        firestoreSyncManager.uploadPaymentRequest(req, authManager.currentUser.value?.uid ?: "")
+        return req
     }
 
     // Admin Operations
@@ -263,10 +373,14 @@ class LinguaQuestViewModel(application: Application) : AndroidViewModel(applicat
 
     fun approvePayment(requestId: String) {
         repository.approvePayment(requestId)
+        val p = repository.paymentRequests.value.find { it.id == requestId }
+        val targetUser = repository.registeredUsers.value.find { it.emailOrPhone == p?.userContact }
+        firestoreSyncManager.updatePaymentStatus(requestId, PaymentStatus.APPROVED, targetUser?.id)
     }
 
     fun rejectPayment(requestId: String) {
         repository.rejectPayment(requestId)
+        firestoreSyncManager.updatePaymentStatus(requestId, PaymentStatus.REJECTED)
     }
 
     fun manualAddUser(name: String, contact: String, level: CefrLevel, isVip: Boolean) {
@@ -275,6 +389,7 @@ class LinguaQuestViewModel(application: Application) : AndroidViewModel(applicat
 
     fun upgradeToPremium() {
         repository.setPremium(true)
+        syncToCloudNow()
     }
 
     fun setSpeechSpeed(speed: Float) {
@@ -292,5 +407,6 @@ class LinguaQuestViewModel(application: Application) : AndroidViewModel(applicat
     override fun onCleared() {
         super.onCleared()
         speechManager.shutdown()
+        firestoreSyncManager.cleanup()
     }
 }

@@ -64,6 +64,11 @@ class MainActivity : ComponentActivity() {
             val aiMessages by viewModel.aiMessages.collectAsState()
             val isAiThinking by viewModel.isAiThinking.collectAsState()
 
+            val currentUser by viewModel.currentUser.collectAsState()
+            val isAuthLoading by viewModel.isAuthLoading.collectAsState()
+            val authError by viewModel.authError.collectAsState()
+            val isCloudSyncing by viewModel.isCloudSyncing.collectAsState()
+
             LinguaQuestTheme(darkTheme = isDarkModeUser || isDarkThemeSystem) {
                 // Handle system back button for all sub-screens
                 BackHandler(enabled = currentScreen != AppScreen.MAIN_LEARN) {
@@ -178,6 +183,16 @@ class MainActivity : ComponentActivity() {
                                     speechSpeed = speechSpeed,
                                     achievements = viewModel.repository.getAchievements(),
                                     leaderboard = viewModel.repository.getLeaderboard(),
+                                    currentUser = currentUser,
+                                    isAuthLoading = isAuthLoading,
+                                    authError = authError,
+                                    isCloudSyncing = isCloudSyncing,
+                                    onGoogleSignIn = { viewModel.signInWithGoogle() },
+                                    onEmailSignIn = { email, pass -> viewModel.signInWithEmail(email, pass) },
+                                    onEmailRegister = { name, email, pass -> viewModel.registerWithEmail(name, email, pass) },
+                                    onGuestSignIn = { viewModel.signInAnonymously() },
+                                    onSignOut = { viewModel.signOut() },
+                                    onSyncNow = { viewModel.syncToCloudNow() },
                                     onToggleDarkMode = { viewModel.toggleDarkMode() },
                                     onSpeechSpeedChange = { speed -> viewModel.setSpeechSpeed(speed) },
                                     onNavigateToContact = { viewModel.navigateTo(AppScreen.CONTACT_DEVELOPER) },
